@@ -1,4 +1,4 @@
-name: Ziwei AI P1-P3
+name: Ziwei AI P1-P4
 
 on:
   push:
@@ -6,11 +6,13 @@ on:
       - project/ziwei-ai-integration
       - project/ziwei-ai-p2-ui
       - project/ziwei-ai-p3-pattern-engine
+      - project/ziwei-ai-p4-rag
   pull_request:
     branches:
       - main
       - project/ziwei-ai-integration
       - project/ziwei-ai-p2-ui
+      - project/ziwei-ai-p3-pattern-engine
 
 jobs:
   deterministic-chart:
@@ -31,7 +33,7 @@ jobs:
       - name: TypeScript strict check
         run: npm run typecheck
 
-      - name: P1-P3 deterministic regression tests
+      - name: P1-P4 deterministic regression tests
         run: npm run test:ziwei-ai
 
       - name: Next.js production build
