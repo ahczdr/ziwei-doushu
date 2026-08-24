@@ -12,7 +12,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:ziwei-ai",
-    "test:p1": "tsx --test lib/ziwei-ai/chart-engine/__tests__/chart-facts.test.ts",
+    "test:p1": "tsx --test lib/ziwei-ai/chart-engine/__tests__/*.test.ts",
     "test:p2": "tsx --test lib/ziwei-ai/ui-chart/__tests__/react-iztro-view-model.test.ts",
     "test:p3": "tsx --test lib/ziwei-ai/pattern-engine/__tests__/*.test.ts",
     "test:p4": "tsx --test lib/ziwei-ai/rag/__tests__/*.test.ts",
