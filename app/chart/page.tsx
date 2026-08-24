@@ -4,6 +4,7 @@ import { useState } from 'react';
 import BirthForm from '@/components/BirthForm';
 import ChartBoard from '@/components/ChartBoard';
 import InsightPanel from '@/components/InsightPanel';
+import PatternEvidencePanel from '@/components/PatternEvidencePanel';
 import ReactIztroBoard from '@/components/ReactIztroBoard';
 import TimeNav, { type TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
@@ -17,12 +18,12 @@ import {
 type ChartMode = 'enhanced' | 'standard';
 
 /**
- * 命盘页 —— P2 双显示层
+ * 命盘页 —— P3 双显示层 + 确定性格局证据
  *
  * enhanced：保留本仓库已有 ChartBoard（三方四正、星曜点击、四化叠加）。
  * standard：使用 react-iztro 官方组件，但输入先经过 ChartFacts 规范化。
  *
- * 两个显示层共享同一出生输入；AI / Pattern Engine 后续只消费 ChartFacts。
+ * Pattern Engine 只消费 standardView.facts；AI 后续同样只消费 ChartFacts + PatternHit。
  */
 export default function ChartPage() {
   const [chart, setChart] = useState<ZiweiChart | null>(null);
@@ -49,7 +50,6 @@ export default function ChartPage() {
     setMode('enhanced');
   };
 
-  // ── 未起盘：展示出生信息表单 ──
   if (!chart || !standardView) {
     return (
       <main style={{ maxWidth: 720, margin: '0 auto', padding: '48px 20px' }}>
@@ -57,14 +57,13 @@ export default function ChartPage() {
         <p style={{ color: '#888', marginBottom: 32, fontSize: 14, lineHeight: 1.7 }}>
           输入出生年月日时，系统同时生成确定性 ChartFacts、增强命盘与 react-iztro 标准命盘。
           <br />
-          AI 与后续格局引擎只读取 ChartFacts，不从 UI 反推命盘事实。
+          格局规则与后续 AI 只读取 ChartFacts，不从 UI 反推命盘事实。
         </p>
         <BirthForm onSubmit={handleBirthSubmit} />
       </main>
     );
   }
 
-  // ── 已起盘：增强盘 / 标准盘 ──
   return (
     <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 16px' }}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -115,7 +114,17 @@ export default function ChartPage() {
           </div>
         </>
       ) : (
-        <ReactIztroBoard viewModel={standardView} />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr) minmax(300px, 380px)',
+            gap: 20,
+            alignItems: 'start',
+          }}
+        >
+          <ReactIztroBoard viewModel={standardView} />
+          <PatternEvidencePanel facts={standardView.facts} />
+        </div>
       )}
     </main>
   );
