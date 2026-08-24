@@ -1,13 +1,15 @@
 export interface BirthInfo {
-  year: number;      // Gregorian year
+  year: number;      // Gregorian year used for the effective chart date
   month: number;     // Gregorian month (1-12)
   day: number;       // Gregorian day
-  hour: number;      // 时辰 branch index (0=子, 1=丑, ... 11=亥)
+  hour: number;      // iztro hour index: 0=early Zi, 1=Chou ... 11=Hai, 12=late Zi
   gender: 'male' | 'female';
   name?: string;
   province?: string;   // 出生省份
   city?: string;       // 出生城市
   longitude?: number;  // 出生地经度（用于真太阳时校正）
+  /** 完整真太阳时，含跨日后的公历日期，例如 2000-08-16T23:42。 */
+  trueSolarTime?: string;
 }
 
 export interface LunarInfo {
@@ -52,7 +54,7 @@ export interface Palace {
   borrowedFromBranch?: number;
   /** 若为空宫，借自哪个宫名 */
   borrowedFromName?: string;
-  /** 若为空宫，借到的对宫主星名列表（结构化数据，文案层不再需要从文本反查） */
+  /** 若为空宫，借到的对宫主星名列表（结构化数据，文案层不再需要从文本反查借宫信息） */
   borrowedStars?: string[];
 }
 
