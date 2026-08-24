@@ -1,12 +1,17 @@
 {
-  "name": "ziwei-master",
+  "name": "ziwei-ai-platform",
   "version": "0.1.0",
   "private": true,
+  "description": "Deterministic Zi Wei Dou Shu charting, pattern evidence, classics RAG and grounded AI interpretation platform.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "npm run test:ziwei-ai",
     "test:p1": "tsx --test lib/ziwei-ai/chart-engine/__tests__/chart-facts.test.ts",
     "test:p2": "tsx --test lib/ziwei-ai/ui-chart/__tests__/react-iztro-view-model.test.ts",
     "test:p3": "tsx --test lib/ziwei-ai/pattern-engine/__tests__/*.test.ts",
@@ -15,6 +20,7 @@
     "test:p6": "tsx --test lib/ziwei-ai/critic/__tests__/*.test.ts",
     "test:p7": "tsx --test lib/ziwei-ai/platform/__tests__/*.test.ts",
     "test:ziwei-ai": "npm run test:p1 && npm run test:p2 && npm run test:p3 && npm run test:p4 && npm run test:p5 && npm run test:p6 && npm run test:p7",
+    "verify:release": "npm run typecheck && npm run test:ziwei-ai && npm run build",
     "build:cf": "npx @cloudflare/next-on-pages",
     "preview:cf": "npx wrangler pages dev",
     "prepare": "husky"
