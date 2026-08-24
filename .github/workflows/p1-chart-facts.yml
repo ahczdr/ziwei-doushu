@@ -1,15 +1,17 @@
-name: P1 ChartFacts
+name: Ziwei AI P1-P2
 
 on:
   push:
     branches:
       - project/ziwei-ai-integration
+      - project/ziwei-ai-p2-ui
   pull_request:
     branches:
       - main
+      - project/ziwei-ai-integration
 
 jobs:
-  chart-facts:
+  deterministic-chart:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -27,5 +29,5 @@ jobs:
       - name: TypeScript strict check
         run: npm run typecheck
 
-      - name: P1 deterministic regression tests
-        run: npm run test:p1
+      - name: P1-P2 deterministic regression tests
+        run: npm run test:ziwei-ai
