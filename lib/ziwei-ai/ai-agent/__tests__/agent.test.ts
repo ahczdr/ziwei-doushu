@@ -36,41 +36,34 @@ test('health-cultural topic requires cultural-only medical boundary in system me
 });
 
 test('interpretChart parses structured claims and injects authoritative citation objects', async () => {
-  let captured: ModelRequest | null = null;
+  const requests: ModelRequest[] = [];
   const provider: ModelProvider = {
     id: 'mock:test',
     async generate(request) {
-      captured = request;
+      requests.push(request);
       return {
         content: JSON.stringify({
           schemaVersion: '1.0',
           title: '测试解读',
           summary: '仅按事实解释。',
-          sections: [{
-            id: 'overview', title: '概览', content: '测试',
-            claims: [{ id: 'c1', text: '这是一个有证据的测试判断。', factIds: [], citationIds: [] }],
-          }],
+          sections: [{ id: 'overview', title: '概览', content: '测试', claims: [{ id: 'c1', text: '这是一个有证据的测试判断。', factIds: [], citationIds: [] }] }],
           disclaimer: '传统文化资料学习参考，不构成专业建议。',
         }),
       };
     },
   };
   const result = await interpretChart({ input, topic: 'overview', retrievalLimit: 3 }, provider);
-  assert.ok(captured);
-  assert.equal(captured!.responseFormat, 'json');
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].responseFormat, 'json');
   assert.equal(result.providerId, 'mock:test');
   assert.equal(result.report.schemaVersion, '1.0');
   assert.equal(result.report.citations.length, result.context.retrieval.length);
 });
 
 test('providerFromEnv fails closed when server credentials are incomplete', () => {
-  assert.equal(providerFromEnv({}), null);
-  assert.equal(providerFromEnv({ ZIWEI_AI_BASE_URL: 'http://localhost:8000/v1', ZIWEI_AI_MODEL: 'qwen' }), null);
-  const provider = providerFromEnv({
-    ZIWEI_AI_BASE_URL: 'http://localhost:8000/v1',
-    ZIWEI_AI_API_KEY: 'server-only-secret',
-    ZIWEI_AI_MODEL: 'qwen',
-  });
+  assert.equal(providerFromEnv({ NODE_ENV: 'test' }), null);
+  assert.equal(providerFromEnv({ NODE_ENV: 'test', ZIWEI_AI_BASE_URL: 'http://localhost:8000/v1', ZIWEI_AI_MODEL: 'qwen' }), null);
+  const provider = providerFromEnv({ NODE_ENV: 'test', ZIWEI_AI_BASE_URL: 'http://localhost:8000/v1', ZIWEI_AI_API_KEY: 'server-only-secret', ZIWEI_AI_MODEL: 'qwen' });
   assert.ok(provider);
   assert.match(provider!.id, /qwen/);
   assert.doesNotMatch(provider!.id, /server-only-secret/);
