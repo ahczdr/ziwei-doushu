@@ -10,7 +10,8 @@
     "test:p1": "tsx --test lib/ziwei-ai/chart-engine/__tests__/chart-facts.test.ts",
     "test:p2": "tsx --test lib/ziwei-ai/ui-chart/__tests__/react-iztro-view-model.test.ts",
     "test:p3": "tsx --test lib/ziwei-ai/pattern-engine/__tests__/*.test.ts",
-    "test:ziwei-ai": "npm run test:p1 && npm run test:p2 && npm run test:p3",
+    "test:p4": "tsx --test lib/ziwei-ai/rag/__tests__/*.test.ts",
+    "test:ziwei-ai": "npm run test:p1 && npm run test:p2 && npm run test:p3 && npm run test:p4",
     "build:cf": "npx @cloudflare/next-on-pages",
     "preview:cf": "npx wrangler pages dev",
     "prepare": "husky"
