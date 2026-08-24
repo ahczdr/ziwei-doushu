@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { ChartFacts, PatternHit } from '@/lib/ziwei-ai/chart-types';
-import { detectPatternHits } from '@/lib/ziwei-ai/pattern-engine';
+import { detectCompletePatternHits } from '@/lib/ziwei-ai/pattern-engine/complete';
 
 const LEVEL_LABEL: Record<PatternHit['level'], string> = {
   excellent: '上格',
@@ -20,7 +20,7 @@ const CATEGORY_LABEL: Record<PatternHit['category'], string> = {
 };
 
 export default function PatternEvidencePanel({ facts }: { facts: ChartFacts }) {
-  const hits = useMemo(() => detectPatternHits(facts), [facts]);
+  const hits = useMemo(() => detectCompletePatternHits(facts), [facts]);
   const [expanded, setExpanded] = useState<string | null>(hits[0]?.id ?? null);
 
   return (
@@ -50,7 +50,7 @@ export default function PatternEvidencePanel({ facts }: { facts: ChartFacts }) {
           className="rounded-xl border border-dashed p-4 text-xs leading-6"
           style={{ borderColor: 'var(--t-border)', color: 'var(--t-faint)' }}
         >
-          当前 P3 已迁移的规则中未命中格局。这里不让 AI 补猜；后续规则迁移后会自然增加覆盖率。
+          当前完整确定性规则集中未命中格局。系统不会让 AI 补猜未命中的规则。
         </div>
       ) : (
         <div className="space-y-2">
