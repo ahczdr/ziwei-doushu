@@ -56,10 +56,11 @@ export interface ReactIztroViewModel {
 }
 
 /**
- * 旧 BirthForm / BirthInfo 到 P1 ChartInput 的兼容桥。
+ * Legacy BirthInfo -> P1 ChartInput compatibility bridge.
  *
- * 当前 BirthForm 已经把经度修正后的真太阳时时辰写入 `hour`，所以这里不再次修正。
- * 后续表单升级为完整真太阳时日期后，可直接提交 ChartInput 并绕过此桥。
+ * `ZiweiAiBirthForm` now preserves a complete true-solar timestamp when available.
+ * Passing it through here lets ChartFacts retain cross-midnight dates and distinguish
+ * early Zi (0) from late Zi (12).
  */
 export function birthInfoToChartInput(info: BirthInfo): ChartInput {
   const birthplace = [info.province, info.city].filter(Boolean).join(' / ') || undefined;
@@ -70,6 +71,7 @@ export function birthInfoToChartInput(info: BirthInfo): ChartInput {
     gender: info.gender,
     ...(birthplace ? { birthplace } : {}),
     ...(info.longitude !== undefined ? { longitude: info.longitude } : {}),
+    ...(info.trueSolarTime ? { trueSolarTime: info.trueSolarTime } : {}),
   };
 }
 
