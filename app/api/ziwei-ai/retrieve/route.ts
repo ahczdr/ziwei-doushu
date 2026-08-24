@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const bookSlugs = Array.isArray(payload.bookSlugs)
     ? payload.bookSlugs.filter((item): item is string => typeof item === 'string').slice(0, 10)
     : undefined;
-  const hits = await retrieveClassics({ query: undefined as never, text: query, limit, ...(bookSlugs?.length ? { bookSlugs } : {}) });
+  const hits = await retrieveClassics({ text: query, limit, ...(bookSlugs?.length ? { bookSlugs } : {}) });
   return Response.json({
     hits: hits.map((hit) => ({
       citationId: hit.citationId,
