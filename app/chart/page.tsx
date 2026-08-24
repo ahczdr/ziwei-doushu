@@ -1,75 +1,147 @@
 'use client';
+
 import { useState } from 'react';
 import BirthForm from '@/components/BirthForm';
 import ChartBoard from '@/components/ChartBoard';
 import InsightPanel from '@/components/InsightPanel';
+import ReactIztroBoard from '@/components/ReactIztroBoard';
 import TimeNav, { type TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
+import {
+  birthInfoToChartInput,
+  buildReactIztroViewModel,
+  type ReactIztroViewModel,
+} from '@/lib/ziwei-ai/ui-chart';
+
+type ChartMode = 'enhanced' | 'standard';
 
 /**
- * 命盘页 —— 开源版「排盘引擎 Demo」
+ * 命盘页 —— P2 双显示层
  *
- * 这是一个最小可运行示例：用本仓库的排盘引擎 generateChart() 配合基础 UI
- * 组件，渲染一张完整紫微命盘 + 基础解读，并支持本命 / 大限 / 流年切换。
+ * enhanced：保留本仓库已有 ChartBoard（三方四正、星曜点击、四化叠加）。
+ * standard：使用 react-iztro 官方组件，但输入先经过 ChartFacts 规范化。
  *
- * 说明：线上商业版的完整交互界面（重设计的新 UI、AI 流式解读、合盘、分享
- * 卡片等）不在开源范围内；但排盘内核——安星算法、四化、格局识别、古籍库——
- * 完全开放（见 lib/ziwei/*），可自由二次开发出你自己的界面。
+ * 两个显示层共享同一出生输入；AI / Pattern Engine 后续只消费 ChartFacts。
  */
 export default function ChartPage() {
   const [chart, setChart] = useState<ZiweiChart | null>(null);
+  const [standardView, setStandardView] = useState<ReactIztroViewModel | null>(null);
   const [selectedPalace, setSelectedPalace] = useState<Palace | null>(null);
   const [view, setView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState(() => new Date().getFullYear());
+  const [mode, setMode] = useState<ChartMode>('enhanced');
+
+  const handleBirthSubmit = (info: BirthInfo) => {
+    const input = birthInfoToChartInput(info);
+    const nextChart = generateChart(info);
+    const nextStandardView = buildReactIztroViewModel(input);
+
+    setChart(nextChart);
+    setStandardView(nextStandardView);
+    setSelectedPalace(null);
+  };
+
+  const reset = () => {
+    setChart(null);
+    setStandardView(null);
+    setSelectedPalace(null);
+    setMode('enhanced');
+  };
 
   // ── 未起盘：展示出生信息表单 ──
-  if (!chart) {
+  if (!chart || !standardView) {
     return (
       <main style={{ maxWidth: 720, margin: '0 auto', padding: '48px 20px' }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>紫微斗数排盘</h1>
         <p style={{ color: '#888', marginBottom: 32, fontSize: 14, lineHeight: 1.7 }}>
-          输入出生年月日时，开源排盘引擎即时生成命盘。
+          输入出生年月日时，系统同时生成确定性 ChartFacts、增强命盘与 react-iztro 标准命盘。
           <br />
-          （本页为引擎 Demo，完整商业版界面不在开源范围；排盘内核完全开放。）
+          AI 与后续格局引擎只读取 ChartFacts，不从 UI 反推命盘事实。
         </p>
-        <BirthForm onSubmit={(info: BirthInfo) => setChart(generateChart(info))} />
+        <BirthForm onSubmit={handleBirthSubmit} />
       </main>
     );
   }
 
-  // ── 已起盘：命盘 + 解读 ──
+  // ── 已起盘：增强盘 / 标准盘 ──
   return (
     <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 16px' }}>
-      <button
-        type="button"
-        onClick={() => { setChart(null); setSelectedPalace(null); }}
-        style={{
-          marginBottom: 16, padding: '6px 14px', cursor: 'pointer',
-          border: '1px solid #ccc', borderRadius: 8, background: 'transparent',
-        }}
-      >
-        ← 重新起盘
-      </button>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={reset}
+          style={{
+            padding: '6px 14px', cursor: 'pointer',
+            border: '1px solid #ccc', borderRadius: 8, background: 'transparent',
+          }}
+        >
+          ← 重新起盘
+        </button>
 
-      <TimeNav
-        chart={chart}
-        view={view}
-        liunianYear={liunianYear}
-        onViewChange={setView}
-        onYearChange={setLiunianYear}
-      />
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 380px)',
-          gap: 20, marginTop: 16, alignItems: 'start',
-        }}
-      >
-        <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
-        <InsightPanel chart={chart} selectedPalace={selectedPalace} />
+        <div
+          className="flex rounded-xl border p-1"
+          style={{ borderColor: 'var(--t-border)', background: 'var(--t-bg)' }}
+          aria-label="命盘显示模式"
+        >
+          <ModeButton active={mode === 'enhanced'} onClick={() => setMode('enhanced')}>
+            增强盘
+          </ModeButton>
+          <ModeButton active={mode === 'standard'} onClick={() => setMode('standard')}>
+            标准盘 · react-iztro
+          </ModeButton>
+        </div>
       </div>
+
+      {mode === 'enhanced' ? (
+        <>
+          <TimeNav
+            chart={chart}
+            view={view}
+            liunianYear={liunianYear}
+            onViewChange={setView}
+            onYearChange={setLiunianYear}
+          />
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 380px)',
+              gap: 20, marginTop: 16, alignItems: 'start',
+            }}
+          >
+            <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
+            <InsightPanel chart={chart} selectedPalace={selectedPalace} />
+          </div>
+        </>
+      ) : (
+        <ReactIztroBoard viewModel={standardView} />
+      )}
     </main>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="rounded-lg px-3 py-1.5 text-xs transition-all"
+      style={{
+        background: active ? 'var(--t-gold)' : 'transparent',
+        color: active ? 'var(--t-bg)' : 'var(--t-text)',
+      }}
+    >
+      {children}
+    </button>
   );
 }
