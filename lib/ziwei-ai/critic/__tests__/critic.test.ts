@@ -33,6 +33,22 @@ test('Critic passes fully grounded claims', async () => {
   assert.equal(result.citationReferencePrecision, 1);
 });
 
+test('Critic rejects an empty report instead of treating zero claims as fully grounded', async () => {
+  const ctx = await context();
+  const report: InterpretationReport = {
+    schemaVersion: '1.0',
+    title: '空报告',
+    summary: '',
+    sections: [],
+    citations: [],
+    disclaimer: '传统文化资料学习参考，不构成专业建议。',
+  };
+  const result = critiqueReport(report, ctx);
+  assert.equal(result.passed, false);
+  assert.equal(result.groundedClaimRatio, 0);
+  assert.ok(result.issues.some((issue) => issue.code === 'empty-evidence-report'));
+});
+
 test('Critic rejects invented fact/citation IDs and fatalistic wording', async () => {
   const ctx = await context();
   const report = groundedReport('invented:star', 'classic:invented:paragraph');
@@ -55,7 +71,7 @@ test('health-cultural Critic blocks medical diagnosis language', async () => {
   assert.ok(result.issues.some((issue) => issue.code === 'medical-diagnosis'));
 });
 
-test('interpretWithCritic performs at most one bounded revision', async () => {
+test('interpretWithCritic performs at most one bounded revision and still rejects an empty revision', async () => {
   let calls = 0;
   const provider: ModelProvider = {
     id: 'mock:revision',
@@ -71,7 +87,7 @@ test('interpretWithCritic performs at most one bounded revision', async () => {
       }
       assert.match(user, /Critic/);
       return { content: JSON.stringify({
-        schemaVersion: '1.0', title: '修订报告', summary: '证据不足时保持克制。', sections: [],
+        schemaVersion: '1.0', title: '空修订报告', summary: '证据不足。', sections: [],
         disclaimer: '传统文化资料学习参考，不构成专业建议。',
       }) };
     },
@@ -79,7 +95,8 @@ test('interpretWithCritic performs at most one bounded revision', async () => {
   const result = await interpretWithCritic({ input, topic: 'overview', retrievalLimit: 2 }, provider, true);
   assert.equal(calls, 2);
   assert.equal(result.revised, true);
-  assert.equal(result.critic.passed, true);
+  assert.equal(result.critic.passed, false);
+  assert.ok(result.critic.issues.some((issue) => issue.code === 'empty-evidence-report'));
 });
 
 test('evaluation summary aggregates critic outcomes', () => {
