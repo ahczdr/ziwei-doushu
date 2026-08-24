@@ -8,6 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:p1": "tsx --test lib/ziwei-ai/chart-engine/__tests__/chart-facts.test.ts",
+    "test:p2": "tsx --test lib/ziwei-ai/ui-chart/__tests__/react-iztro-view-model.test.ts",
+    "test:ziwei-ai": "npm run test:p1 && npm run test:p2",
     "build:cf": "npx @cloudflare/next-on-pages",
     "preview:cf": "npx wrangler pages dev",
     "prepare": "husky"
@@ -27,6 +29,7 @@
     "pg": "^8.20.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-iztro": "1.5.0",
     "vercel": "^50.42.0"
   },
   "devDependencies": {
