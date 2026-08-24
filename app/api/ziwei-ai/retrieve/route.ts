@@ -3,6 +3,11 @@ import { retrieveClassics } from '@/lib/ziwei-ai/rag';
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get('content-length') ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > 8_000) {
+    return Response.json({ error: 'request-too-large' }, { status: 413 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
