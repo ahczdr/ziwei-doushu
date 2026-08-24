@@ -78,16 +78,22 @@ export interface OpenAICompatibleChatOptions {
   apiKey: string;
   model: string;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
 }
 
 export class OpenAICompatibleChatProvider implements ModelProvider {
   readonly id: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
 
   constructor(private readonly options: OpenAICompatibleChatOptions) {
     if (!options.baseUrl || !options.apiKey || !options.model) throw new TypeError('baseUrl, apiKey and model are required');
+    if (options.timeoutMs !== undefined && (!Number.isFinite(options.timeoutMs) || options.timeoutMs < 1_000 || options.timeoutMs > 300_000)) {
+      throw new RangeError(`timeoutMs must be between 1000 and 300000, received ${options.timeoutMs}`);
+    }
     this.id = `openai-compatible:${options.model}`;
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? 60_000;
   }
 
   async generate(request: ModelRequest): Promise<ModelResponse> {
@@ -104,6 +110,7 @@ export class OpenAICompatibleChatProvider implements ModelProvider {
         temperature: request.temperature,
         response_format: { type: 'json_object' },
       }),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!response.ok) throw new Error(`model provider failed: HTTP ${response.status}`);
     const payload = await response.json() as {
@@ -120,8 +127,13 @@ export function providerFromEnv(env: NodeJS.ProcessEnv = process.env): ModelProv
   const baseUrl = env.ZIWEI_AI_BASE_URL?.trim();
   const apiKey = env.ZIWEI_AI_API_KEY?.trim();
   const model = env.ZIWEI_AI_MODEL?.trim();
+  const timeoutText = env.ZIWEI_AI_TIMEOUT_MS?.trim();
   if (!baseUrl || !apiKey || !model) return null;
-  return new OpenAICompatibleChatProvider({ baseUrl, apiKey, model });
+  const timeoutMs = timeoutText ? Number(timeoutText) : undefined;
+  if (timeoutText && (!Number.isFinite(timeoutMs) || timeoutMs! < 1_000 || timeoutMs! > 300_000)) {
+    throw new RangeError('ZIWEI_AI_TIMEOUT_MS must be between 1000 and 300000');
+  }
+  return new OpenAICompatibleChatProvider({ baseUrl, apiKey, model, ...(timeoutMs ? { timeoutMs } : {}) });
 }
 
 function allFactIds(facts: ChartFacts): string[] {
