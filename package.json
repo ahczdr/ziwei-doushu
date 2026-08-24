@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test:p1": "tsx --test lib/ziwei-ai/chart-engine/__tests__/chart-facts.test.ts",
     "test:p2": "tsx --test lib/ziwei-ai/ui-chart/__tests__/react-iztro-view-model.test.ts",
-    "test:ziwei-ai": "npm run test:p1 && npm run test:p2",
+    "test:p3": "tsx --test lib/ziwei-ai/pattern-engine/__tests__/pattern-engine.test.ts",
+    "test:ziwei-ai": "npm run test:p1 && npm run test:p2 && npm run test:p3",
     "build:cf": "npx @cloudflare/next-on-pages",
     "preview:cf": "npx wrangler pages dev",
     "prepare": "husky"
