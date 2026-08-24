@@ -57,6 +57,14 @@ export function critiqueReport(report: InterpretationReport, context: AgentConte
   let citationRefs = 0;
   let validCitationRefs = 0;
 
+  if (report.sections.length === 0 || claims.length === 0) {
+    issues.push({
+      severity: 'error',
+      code: 'empty-evidence-report',
+      message: '报告必须至少包含一个带事实或古籍证据的 claim，空报告不能通过 Critic。',
+    });
+  }
+
   for (const claim of claims) {
     const invalidFacts = claim.factIds.filter((id) => !facts.has(id));
     const invalidCitations = claim.citationIds.filter((id) => !citations.has(id));
@@ -95,7 +103,7 @@ export function critiqueReport(report: InterpretationReport, context: AgentConte
     }
   }
 
-  const groundedClaimRatio = claims.length ? grounded / claims.length : 1;
+  const groundedClaimRatio = claims.length ? grounded / claims.length : 0;
   const citationReferencePrecision = citationRefs ? validCitationRefs / citationRefs : 1;
   const errorCount = issues.filter((issue) => issue.severity === 'error').length;
   const warningCount = issues.length - errorCount;
