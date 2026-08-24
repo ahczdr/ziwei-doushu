@@ -1,0 +1,54 @@
+name: Publish v0.1.0
+
+on:
+  push:
+    branches:
+      - release/v0.1.0
+    paths:
+      - .github/workflows/publish-v0.1.0.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release metadata
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify audited main commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags
+          MAIN_SHA="$(git rev-parse origin/main)"
+          EXPECTED_SHA="09ad9e595064c40f244ce0dd6919af166bfd09f8"
+          echo "main=$MAIN_SHA"
+          test "$MAIN_SHA" = "$EXPECTED_SHA"
+          if git rev-parse -q --verify refs/tags/v0.1.0 >/dev/null; then
+            echo "v0.1.0 already exists; refusing to move an existing release tag"
+            exit 1
+          fi
+
+      - name: Create immutable release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a v0.1.0 09ad9e595064c40f244ce0dd6919af166bfd09f8 -m 'Ziwei AI Platform v0.1.0'
+          git push origin refs/tags/v0.1.0
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.1.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --title 'Ziwei AI Platform v0.1.0' \
+            --notes-file docs/RELEASE_NOTES_v0.1.0.md \
+            --verify-tag
