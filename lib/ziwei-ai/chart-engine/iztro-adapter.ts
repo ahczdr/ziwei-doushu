@@ -1,5 +1,4 @@
 import { astro } from 'iztro';
-import { Solar } from 'lunar-javascript';
 import type {
   BuildChartFactsOptions,
   ChartFacts,
@@ -219,15 +218,17 @@ function buildFortuneSnapshot(
   };
 }
 
-function numericLunarFacts(solarDate: string) {
-  const [year, month, day] = solarDate.split('-').map(Number);
-  const lunar = Solar.fromYmd(year, month, day).getLunar();
-  const lunarMonth = lunar.getMonth();
+function numericLunarFacts(lunarDate: {
+  lunarYear: number;
+  lunarMonth: number;
+  lunarDay: number;
+  isLeap?: boolean;
+}) {
   return {
-    year: lunar.getYear(),
-    month: Math.abs(lunarMonth),
-    day: lunar.getDay(),
-    isLeapMonth: lunarMonth < 0,
+    year: lunarDate.lunarYear,
+    month: Math.abs(lunarDate.lunarMonth),
+    day: lunarDate.lunarDay,
+    isLeapMonth: Boolean(lunarDate.isLeap),
   };
 }
 
@@ -271,7 +272,7 @@ export function buildChartFacts(
     basics: {
       solarDate: String(astrolabe.solarDate),
       lunarDate: String(astrolabe.lunarDate),
-      lunar: numericLunarFacts(String(astrolabe.solarDate)),
+      lunar: numericLunarFacts(astrolabe.rawDates.lunarDate),
       chineseDate: String(astrolabe.chineseDate),
       time: String(astrolabe.time),
       timeRange: String(astrolabe.timeRange),
