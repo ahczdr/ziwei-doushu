@@ -1,4 +1,13 @@
 export { buildChartFacts, clockHourToIztroIndex } from './iztro-adapter';
+export {
+  calculateTrueSolarTime,
+  equationOfTimeMinutes,
+  solarClockHourToIztroIndex,
+} from './true-solar-time';
+export type {
+  TrueSolarTimeInput,
+  TrueSolarTimeResult,
+} from './true-solar-time';
 export type {
   BuildChartFactsOptions,
   ChartBasics,
