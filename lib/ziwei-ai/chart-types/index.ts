@@ -2,6 +2,14 @@ export type CalendarType = 'solar' | 'lunar';
 export type Gender = 'male' | 'female';
 export type TransformationKind = '禄' | '权' | '科' | '忌';
 export type StarCategory = 'major' | 'minor' | 'adjective';
+export type PatternLevel = 'excellent' | 'good' | 'neutral' | 'caution';
+export type PatternCategory = 'primary' | 'secondary' | 'support' | 'transformation' | 'warning';
+export type PatternEvidenceKind =
+  | 'star-in-palace'
+  | 'star-in-san-fang'
+  | 'transformation'
+  | 'adjacent-palace'
+  | 'condition';
 
 /**
  * P1 的统一排盘输入。
@@ -131,14 +139,43 @@ export interface FortuneFacts {
   snapshot?: FortuneSnapshot;
 }
 
-/** P3 的规则命中接口先冻结，P1 不实现具体格局规则。 */
+export interface PatternEvidence {
+  kind: PatternEvidenceKind;
+  text: string;
+  palaceName?: string;
+  palaceBranch?: string;
+  starName?: string;
+  transformation?: TransformationKind;
+  /** 指向 ChartFacts 中参与判定的稳定事实 ID，例如 star.id 或 palace:<branch>。 */
+  factIds: string[];
+}
+
+export interface PatternSource {
+  title: string;
+  locator?: string;
+  /** 迁移期间保留旧 patterns.ts 的规则名，方便逐条对照。 */
+  legacyRule?: string;
+}
+
+/**
+ * P3 起正式冻结的结构化格局命中对象。
+ * 规则命中是确定性判断，因此 confidence 固定为 1，不伪装成模型概率。
+ */
 export interface PatternHit {
   id: string;
-  name: string;
   ruleId: string;
+  name: string;
+  category: PatternCategory;
+  level: PatternLevel;
+  description: string;
   palaceNames: string[];
   starNames: string[];
-  evidence: string[];
+  matchedFacts: string[];
+  evidence: PatternEvidence[];
+  bonus: string[];
+  breaking: string[];
+  source: PatternSource;
+  confidence: 1;
 }
 
 export interface ChartFacts {
