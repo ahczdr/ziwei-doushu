@@ -38,6 +38,21 @@ test('lunar input is normalized to the same canonical solar display input', () =
   assert.equal(vm.props.isLeapMonth, false);
 });
 
+test('leap-month input is normalized to ChartFacts canonical solar date before rendering', () => {
+  const vm = buildReactIztroViewModel({
+    calendarType: 'lunar',
+    date: '2023-2-5',
+    hourIndex: 6,
+    gender: 'male',
+    isLeapMonth: true,
+  });
+
+  assert.equal(vm.facts.basics.lunar.isLeapMonth, true);
+  assert.equal(vm.props.birthday, vm.facts.basics.solarDate);
+  assert.equal(vm.props.birthdayType, 'solar');
+  assert.equal(vm.props.isLeapMonth, false);
+});
+
 test('true solar time controls both facts and standard chart render props', () => {
   const vm = buildReactIztroViewModel({
     calendarType: 'solar',
