@@ -17,6 +17,24 @@ import type {
 const TRANSFORMATIONS: readonly TransformationKind[] = ['禄', '权', '科', '忌'];
 const TRANSFORMATION_SET = new Set<string>(TRANSFORMATIONS);
 
+/**
+ * Ziwei AI 的确定性 iztro 基线。
+ *
+ * iztro 的 config() 修改模块级全局状态；react-iztro / 其他调用方也可能修改它。
+ * 因此每次构建 ChartFacts 前必须显式恢复这些选项，避免 UI 操作污染事实层。
+ */
+export const DETERMINISTIC_IZTRO_CONFIG = {
+  yearDivide: 'normal',
+  horoscopeDivide: 'normal',
+  ageDivide: 'normal',
+  dayDivide: 'forward',
+  algorithm: 'default',
+} as const;
+
+function applyDeterministicIztroConfig(): void {
+  astro.config(DETERMINISTIC_IZTRO_CONFIG);
+}
+
 function assertHourIndex(hourIndex: number): void {
   if (!Number.isInteger(hourIndex) || hourIndex < 0 || hourIndex > 12) {
     throw new RangeError(`hourIndex must be an integer between 0 and 12, received ${hourIndex}`);
@@ -241,6 +259,8 @@ export function buildChartFacts(
   input: ChartInput,
   options: BuildChartFactsOptions = {},
 ): ChartFacts {
+  applyDeterministicIztroConfig();
+
   const effectiveBirthTime = resolveEffectiveBirthTime(input);
   const iztroGender = input.gender === 'male' ? '男' : '女';
   const fixLeap = input.fixLeap ?? true;
