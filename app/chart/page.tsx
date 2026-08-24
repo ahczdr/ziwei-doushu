@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import BirthForm from '@/components/BirthForm';
+import ZiweiAiBirthForm from '@/components/ZiweiAiBirthForm';
 import ChartBoard from '@/components/ChartBoard';
 import InsightPanel from '@/components/InsightPanel';
 import PatternEvidencePanel from '@/components/PatternEvidencePanel';
@@ -22,6 +22,9 @@ type ChartMode = 'enhanced' | 'standard';
  * 命盘页 —— Ziwei AI MVP
  * enhanced：保留原增强盘。
  * standard：react-iztro 标准盘 + 完整格局证据链 + 服务端 AI 解盘。
+ *
+ * `/chart` 使用 ZiweiAiBirthForm 桥接旧表单，确保跨日真太阳时与晚子时
+ * 在增强盘、ChartFacts 和 react-iztro 标准盘之间保持一致。
  */
 export default function ChartPage() {
   const [chart, setChart] = useState<ZiweiChart | null>(null);
@@ -54,7 +57,7 @@ export default function ChartPage() {
           <br />
           AI 只解释确定性事实与实际检索到的古籍，不参与排盘计算。
         </p>
-        <BirthForm onSubmit={handleBirthSubmit} />
+        <ZiweiAiBirthForm onSubmit={handleBirthSubmit} />
       </main>
     );
   }
