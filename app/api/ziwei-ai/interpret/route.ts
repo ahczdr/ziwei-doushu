@@ -1,4 +1,7 @@
-import { providerFromEnv } from '@/lib/ziwei-ai/ai-agent/runtime-provider';
+import {
+  modelRegistryFromEnv,
+  UnknownModelProfileError,
+} from '@/lib/ziwei-ai/ai-agent/model-registry';
 import { interpretWithCritic } from '@/lib/ziwei-ai/critic';
 import { parseInterpretApiPayload } from '@/lib/ziwei-ai/platform';
 
@@ -17,31 +20,46 @@ export async function POST(request: Request) {
   const payload = parseInterpretApiPayload(body);
   if (!payload) return Response.json({ error: 'invalid-chart-input' }, { status: 400 });
 
-  let provider;
+  let registry;
   try {
-    provider = providerFromEnv();
+    registry = modelRegistryFromEnv();
   } catch (error) {
     console.error('ziwei-ai provider configuration invalid', error);
     return Response.json({
       error: 'ai-provider-invalid',
-      message: '服务端 AI Provider 配置无效，请检查 Base URL、模型名与 API 协议设置。',
+      message: '服务端 AI Provider 配置无效，请检查模型注册表、Base URL、模型名与 API 协议设置。',
     }, { status: 503 });
   }
 
-  if (!provider) {
+  if (!registry) {
     return Response.json({
       error: 'ai-provider-not-configured',
-      message: '服务端尚未配置 ZIWEI_AI_BASE_URL / ZIWEI_AI_API_KEY / ZIWEI_AI_MODEL。',
+      message: '服务端尚未配置可用的 AI 模型 Profile。',
     }, { status: 503 });
+  }
+
+  let selection;
+  try {
+    selection = registry.select(payload.modelProfileId);
+  } catch (error) {
+    if (error instanceof UnknownModelProfileError) {
+      return Response.json({
+        error: 'unknown-model-profile',
+        message: '所选 AI 模型已不可用，请刷新模型列表后重试。',
+      }, { status: 400 });
+    }
+    console.error('ziwei-ai model selection failed', error);
+    return Response.json({ error: 'ai-provider-invalid' }, { status: 503 });
   }
 
   try {
-    const result = await interpretWithCritic({ ...payload, retrievalLimit: 8 }, provider, true);
+    const result = await interpretWithCritic({ ...payload, retrievalLimit: 8 }, selection.provider, true);
     return Response.json({
       report: result.report,
       critic: result.critic,
       revised: result.revised,
       providerId: result.providerId,
+      modelProfile: selection.profile,
       patterns: result.context.patterns,
       retrieval: result.context.retrieval.map((hit) => ({
         citationId: hit.citationId,

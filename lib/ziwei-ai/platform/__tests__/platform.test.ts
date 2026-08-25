@@ -36,3 +36,13 @@ test('health-cultural remains an explicit API topic', () => {
   assert.ok(parsed);
   assert.equal(parsed.topic, 'health-cultural');
 });
+
+test('P11 accepts bounded model profile IDs and rejects path-like or malformed selectors', () => {
+  const input = { calendarType: 'solar', date: '2000-8-16', hourIndex: 2, gender: 'female' };
+  const parsed = parseInterpretApiPayload({ input, modelProfileId: 'qwen_37-plus' });
+  assert.ok(parsed);
+  assert.equal(parsed.modelProfileId, 'qwen_37-plus');
+  assert.equal(parseInterpretApiPayload({ input, modelProfileId: '../../secret' }), null);
+  assert.equal(parseInterpretApiPayload({ input, modelProfileId: 'UPPERCASE' }), null);
+  assert.equal(parseInterpretApiPayload({ input, modelProfileId: 42 }), null);
+});

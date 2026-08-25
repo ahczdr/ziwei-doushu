@@ -4,12 +4,14 @@ import type { ChartInput } from '../chart-types';
 const TOPICS = new Set<InterpretationTopic>(['overview', 'career', 'wealth', 'relationship', 'health-cultural', 'custom']);
 const DATE_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
 const DATE_TIME_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{2})(?::\d{2})?$/;
+const MODEL_PROFILE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 
 export interface InterpretApiPayload {
   input: ChartInput;
   topic: InterpretationTopic;
   question?: string;
   fortuneDate?: string;
+  modelProfileId?: string;
 }
 
 function validSolarParts(year: number, month: number, day: number): boolean {
@@ -79,10 +81,19 @@ export function parseInterpretApiPayload(value: unknown): InterpretApiPayload | 
   const question = typeof payload.question === 'string' ? payload.question.trim().slice(0, 1000) : '';
   const fortuneDate = typeof payload.fortuneDate === 'string' ? payload.fortuneDate.trim() : '';
   if (fortuneDate && !validChartDate('solar', fortuneDate)) return null;
+
+  let modelProfileId = '';
+  if (payload.modelProfileId !== undefined) {
+    if (typeof payload.modelProfileId !== 'string') return null;
+    modelProfileId = payload.modelProfileId.trim();
+    if (modelProfileId && !MODEL_PROFILE_ID_RE.test(modelProfileId)) return null;
+  }
+
   return {
     input: payload.input,
     topic,
     ...(question ? { question } : {}),
     ...(fortuneDate ? { fortuneDate } : {}),
+    ...(modelProfileId ? { modelProfileId } : {}),
   };
 }
