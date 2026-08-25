@@ -1,0 +1,69 @@
+name: Publish v0.1.1
+
+on:
+  push:
+    branches:
+      - release/v0.1.1
+    paths:
+      - '.github/workflows/publish-v0.1.1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_SHA: 557bcbaf7b468a3a4f86938c78600c47335f149b
+      TAG_NAME: v0.1.1
+    steps:
+      - name: Checkout release metadata
+        uses: actions/checkout@v4
+        with:
+          ref: release/v0.1.1
+          fetch-depth: 0
+
+      - name: Verify audited main commit
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags --force
+          ACTUAL_MAIN=$(git rev-parse origin/main)
+          test "$ACTUAL_MAIN" = "$TARGET_SHA" || {
+            echo "Refusing release: main is $ACTUAL_MAIN, expected $TARGET_SHA"
+            exit 1
+          }
+          test "$(cat VERSION)" = '0.1.1' || {
+            echo 'Refusing release: VERSION is not 0.1.1'
+            exit 1
+          }
+
+      - name: Create immutable release tag
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null 2>&1; then
+            echo "Refusing to move existing tag $TAG_NAME"
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG_NAME" "$TARGET_SHA" -m 'Ziwei AI Platform v0.1.1'
+          git push origin "refs/tags/$TAG_NAME"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title 'Ziwei AI Platform v0.1.1' \
+            --notes-file docs/RELEASE_NOTES_v0.1.1.md \
+            --verify-tag
+
+      - name: Verify published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft,isPrerelease,url,targetCommitish
