@@ -33,6 +33,32 @@ ZIWEI_AI_DEFAULT_PROFILE=default
 
 上述两个 Profile 没有重复写 `baseUrl` 或 Key，因此继承默认 Provider 的 OpenCode Go 地址和服务端 API Key。`apiStyle` 未指定时按每个模型独立自动判断协议。
 
+### 仓库声明式 Profile
+
+正式 Vercel 部署默认读取：
+
+```text
+config/ziwei-ai-model-profiles.json
+```
+
+当前声明的附加 Profile 为：
+
+```json
+[
+  {
+    "id": "qwen-plus",
+    "label": "Qwen3.7 Plus",
+    "model": "qwen3.7-plus",
+    "apiStyle": "auto",
+    "timeoutMs": 120000
+  }
+]
+```
+
+这个文件只保存非敏感路由配置，不保存 API Key。`ZIWEI_AI_PROFILES_JSON` GitHub Secret 仍可作为高级覆盖项；未设置该 Secret 时，正式部署不会再清空附加模型，而是使用仓库声明配置。
+
+默认模型继续使用全局 60 秒 Provider timeout；`qwen-plus` 使用 Profile 级 120 秒 timeout。该差异来自真实 Preview/Production 延迟验收，而不是修改全局超时。
+
 ## 不同 Provider
 
 Profile 可以指定另一个 Base URL，但禁止直接把 Secret 放进 JSON。使用 `apiKeyEnv` 指向一个服务端环境变量：
@@ -126,6 +152,8 @@ Interpret 响应新增安全元数据：
 
 `/api/health` 和 `/api/ready` 仍然不暴露 Secret；readiness 现在同时支持 legacy 单 Provider 和 profile-only 配置。
 
+Release Gate 额外校验仓库声明式 Profile：必须是非空 JSON 数组、不得含 raw `apiKey`，并固定验证 `qwen-plus / qwen3.7-plus / auto / 120000ms` 基线。
+
 ## OpenCode Go 示例
 
 当前自动协议映射仍由 `runtime-provider.ts` 负责，例如：
@@ -148,14 +176,42 @@ ZIWEI_AI_PROFILES_JSON
 ZIWEI_AI_DEFAULT_PROFILE
 ```
 
-Vercel 正式部署工作流可从 GitHub Secrets 同步：
+Vercel 正式部署工作流将 Secret 与非敏感 Profile 分离：
+
+- `ZIWEI_AI_BASE_URL`、`ZIWEI_AI_API_KEY`、`ZIWEI_AI_MODEL` 继续来自 GitHub Secrets；
+- 附加模型默认来自 `config/ziwei-ai-model-profiles.json`；
+- `ZIWEI_AI_PROFILES_JSON` Secret 可覆盖仓库默认 Profile；
+- Preview 与 Production 均使用 Vercel REST Environment API 原子 upsert，不依赖 Vercel GitHub Login Connection；
+- Profile 使用自定义 `apiKeyEnv` 时，对应 Secret 仍必须单独存在于 Vercel/服务器环境。
+
+## 2026-08-25 在线验收
+
+Preview 和 Production 均完成双模型真实解盘验收。验证链路包括：
 
 ```text
-ZIWEI_AI_PROFILES_JSON
-ZIWEI_AI_DEFAULT_PROFILE
+/api/health
+/api/ready
+/api/ziwei-ai/models
+/api/ziwei-ai/interpret (default)
+/api/ziwei-ai/interpret (qwen-plus)
+Critic
 ```
 
-如果 Profile 使用自定义 `apiKeyEnv`，该对应 Secret 仍需单独存在于 Vercel/服务器环境；工作流不会动态读取或猜测 Secret 名称。
+验收结果：
+
+- `default`：`gpt-5.6-luna`，自动路由 `responses`，真实解盘成功且 Critic 通过；
+- `qwen-plus`：`qwen3.7-plus`，自动路由 `messages`，真实解盘成功且 Critic 通过；
+- Qwen 在 60 秒 Provider timeout 下曾稳定触发 `TimeoutError`，改为 Profile 级 120 秒后 Preview 与 Production 均通过；
+- 成功 Preview 中 Qwen 约 70 秒完成；Production 验收中约 101 秒完成；
+- 默认模型仍保持全局 60 秒 timeout，没有因慢模型而整体放宽；
+- 生产公共别名为 `https://ziwei-ai-platform.vercel.app`；
+- 生产 `/api/ready` 返回 `ready=true`、`profileCount=2`；
+- 生产模型列表同时暴露 `default/responses` 与 `qwen-plus/messages` 的非敏感元数据。
+
+对应 GitHub Actions 验收：
+
+- Preview 双模型 Run `32815468819`：success；
+- Production 双模型 Run `32815816165`：success。
 
 ## P11 完成定义
 
@@ -165,5 +221,7 @@ ZIWEI_AI_DEFAULT_PROFILE
 - unknown Profile fail closed；
 - readiness 能识别 Profile Registry；
 - P1–P11 Release Gate 全绿；
-- Preview/Production 验收能检查模型列表和实际返回的 `modelProfile`；
+- Preview/Production 验收检查模型列表和实际返回的 `modelProfile`；
+- default 与 `qwen-plus` 均完成真实 Production interpretation + Critic 验收；
+- 模型 Profile 配置已声明式固化，后续正式部署不会因缺少可选 Profile Secret 而意外清空双模型配置；
 - iztro / ChartFacts / Pattern / RAG / Critic 语义无变化。
