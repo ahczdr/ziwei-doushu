@@ -1,0 +1,45 @@
+name: P12 Firewall Inspect
+
+on:
+  push:
+    branches:
+      - ops/p12-preview-acceptance
+    paths:
+      - '.github/workflows/p12-firewall-inspect.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: project/ziwei-ai-p12-production-guardrails
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Link Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          npx --yes vercel@59.5.0 link --yes --project ziwei-ai-platform --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
+
+      - name: Inspect Firewall
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@59.5.0"
+          echo '=== Firewall overview ==='
+          $CLI firewall overview --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
+          echo '=== Firewall rules ==='
+          $CLI firewall rules list --expand --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
