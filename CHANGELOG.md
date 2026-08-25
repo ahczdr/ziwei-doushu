@@ -4,17 +4,52 @@ All notable changes to this fork are documented here. The project follows Semant
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-25
+
+### Added
+
+- P11 declarative AI model profiles in `config/ziwei-ai-model-profiles.json` with runtime selection through `/api/ziwei-ai/models`.
+- Profile-level Provider protocol and timeout overrides while credentials remain server-side Secrets.
+- P12 emergency `ZIWEI_AI_INTERPRET_ENABLED` switch for the billable interpretation endpoint.
+- P12 per-instance concurrent interpretation guard (`ZIWEI_AI_MAX_INFLIGHT`, default 2).
+- P12 hard per-request Provider call budget (`ZIWEI_AI_MAX_PROVIDER_CALLS`, default 2).
+- Optional browser Origin allowlist for `/api/ziwei-ai/interpret`.
+- Request-scoped `X-Request-Id`, `Cache-Control: no-store`, and privacy-safe structured interpretation logs.
+- Vercel Firewall production rule for `POST /api/ziwei-ai/interpret`, limited by IP to 3 requests per 60 seconds.
+
 ### Changed
 
-- P11 Vercel model profiles are now declared in `config/ziwei-ai-model-profiles.json`; provider credentials remain server-side Secrets.
 - Formal Preview and Production environment synchronization use the Vercel REST Environment API, avoiding a dependency on a Vercel GitHub Login Connection.
 - `qwen-plus` (`qwen3.7-plus`) uses a Profile-level 120-second Provider timeout while the default model remains at 60 seconds.
 - Release Gate validates the declarative Profile baseline and rejects committed raw `apiKey` fields.
+- Release Gate now covers P1–P12, including production-safety parsing, Origin checks, concurrent-slot release and Provider-call hard limits.
+- `/api/health` and `/api/ready` expose only non-sensitive interpretation safety state.
+- Docker Compose and Vercel deployment paths explicitly propagate P12 safety settings.
 
 ### Production validation
 
 - Runtime multi-model Production acceptance passed for both the default `gpt-5.6-luna` Responses route and `qwen3.7-plus` Messages route, including non-empty grounded reports and Critic pass checks.
-- Production alias remains `https://ziwei-ai-platform.vercel.app`; readiness reports two configured profiles.
+- P12 Preview acceptance passed health, readiness, model registry, classics RAG, real AI interpretation and Critic checks.
+- Vercel Firewall live verification confirmed the fourth matching request from one IP in a 60-second window is rejected with HTTP 429 before model execution.
+- Production deployment `dpl_6YjtWqt4aSJYcnrXJYDdp49K2wQN` is READY and aliased to `https://ziwei-ai-platform.vercel.app`.
+- Production Runtime Logs confirmed malicious browser Origin requests return 403 and a real accepted interpretation returned 200 with `providerCalls=1`, `revised=false` and `criticPassed=true`.
+- Public-edge verification confirmed `/interpret` responses include `Cache-Control: no-store` and `X-Request-Id`.
+- Final merged `main` Release Gate #190 (`32843560512`) passed all P1–P12, build, smoke, Docker, Compose, Vercel config, model Profile and critical audit checks.
+
+### Security / Grounding
+
+- Provider credentials, Vercel credentials and model-profile secrets remain server-side and are not committed to the repository.
+- AI still cannot calculate or modify deterministic chart facts.
+- Claim-level Fact IDs/citation IDs and Critic grounding checks remain mandatory.
+- Runtime interpretation logs do not include birth input, user question text, API keys, Provider Base URLs or client IPs.
+- Health-related output remains limited to traditional-cultural interpretation and cannot replace medical diagnosis or treatment.
+
+### Known limitations
+
+- Electronic transcription provenance for the classics corpus is not yet verified paragraph-by-paragraph against named scanned editions.
+- P12 does not provide a strongly consistent per-user daily quota; adding that requires durable storage and an identity layer.
+- External model names, protocols and availability can change independently of this repository.
+- Public APIs remain pre-1.0 and may evolve.
 
 ## [0.1.1] - 2026-08-25
 
