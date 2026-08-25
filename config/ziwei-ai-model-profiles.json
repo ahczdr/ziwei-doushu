@@ -1,0 +1,9 @@
+[
+  {
+    "id": "qwen-plus",
+    "label": "Qwen3.7 Plus",
+    "model": "qwen3.7-plus",
+    "apiStyle": "auto",
+    "timeoutMs": 120000
+  }
+]

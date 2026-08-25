@@ -4,6 +4,18 @@ All notable changes to this fork are documented here. The project follows Semant
 
 ## [Unreleased]
 
+### Changed
+
+- P11 Vercel model profiles are now declared in `config/ziwei-ai-model-profiles.json`; provider credentials remain server-side Secrets.
+- Formal Preview and Production environment synchronization use the Vercel REST Environment API, avoiding a dependency on a Vercel GitHub Login Connection.
+- `qwen-plus` (`qwen3.7-plus`) uses a Profile-level 120-second Provider timeout while the default model remains at 60 seconds.
+- Release Gate validates the declarative Profile baseline and rejects committed raw `apiKey` fields.
+
+### Production validation
+
+- Runtime multi-model Production acceptance passed for both the default `gpt-5.6-luna` Responses route and `qwen3.7-plus` Messages route, including non-empty grounded reports and Critic pass checks.
+- Production alias remains `https://ziwei-ai-platform.vercel.app`; readiness reports two configured profiles.
+
 ## [0.1.1] - 2026-08-25
 
 ### Added
