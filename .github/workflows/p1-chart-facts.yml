@@ -79,5 +79,19 @@ jobs:
       - name: Validate Vercel config
         run: npm run test:p10
 
+      - name: Validate declarative model profiles
+        run: |
+          jq -e '
+            type == "array" and
+            length > 0 and
+            all(.[]; (has("apiKey") | not)) and
+            any(.[];
+              .id == "qwen-plus" and
+              .model == "qwen3.7-plus" and
+              .apiStyle == "auto" and
+              .timeoutMs == 120000
+            )
+          ' config/ziwei-ai-model-profiles.json >/dev/null
+
       - name: Critical dependency audit
         run: npm audit --audit-level=critical
