@@ -1,4 +1,4 @@
-name: Bootstrap Vercel Preview
+name: Bootstrap Vercel Production
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bootstrap-vercel-preview
+  group: bootstrap-vercel-production
   cancel-in-progress: true
 
 env:
@@ -21,7 +21,7 @@ env:
   VERCEL_PROJECT_NAME: ziwei-ai-platform
 
 jobs:
-  preview:
+  production:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -37,14 +37,20 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
 
-      - name: Validate Vercel token
+      - name: Validate deployment and AI secrets
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
+          ZIWEI_AI_API_KEY: ${{ secrets.ZIWEI_AI_API_KEY }}
+          ZIWEI_AI_MODEL: ${{ secrets.ZIWEI_AI_MODEL }}
         run: |
-          test -n "$VERCEL_TOKEN" || { echo 'Missing GitHub Actions secret: VERCEL_TOKEN'; exit 1; }
-          echo 'VERCEL_TOKEN is available to this fresh workflow run.'
+          test -n "$VERCEL_TOKEN" || { echo 'Missing secret: VERCEL_TOKEN'; exit 1; }
+          test -n "$ZIWEI_AI_BASE_URL" || { echo 'Missing secret: ZIWEI_AI_BASE_URL'; exit 1; }
+          test -n "$ZIWEI_AI_API_KEY" || { echo 'Missing secret: ZIWEI_AI_API_KEY'; exit 1; }
+          test -n "$ZIWEI_AI_MODEL" || { echo 'Missing secret: ZIWEI_AI_MODEL'; exit 1; }
+          echo 'Required deployment and AI provider secrets are available.'
 
-      - name: Create or reuse Vercel project
+      - name: Create or reuse Vercel project and lock Node 22
         id: project
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -65,47 +71,115 @@ jobs:
             exit 1
           fi
           PROJECT_ID=$(jq -r '.id // empty' /tmp/project.json)
-          test -n "$PROJECT_ID" || { echo 'Vercel project response missing id'; cat /tmp/project.json; exit 1; }
+          test -n "$PROJECT_ID" || { echo 'Vercel project response missing id'; exit 1; }
+
+          PATCH_STATUS=$(curl -sS -o /tmp/project-patch.json -w '%{http_code}' -X PATCH \
+            -H "$AUTH" -H 'Content-Type: application/json' \
+            "$API/v9/projects/$PROJECT_ID?teamId=$VERCEL_TEAM_ID" \
+            --data '{"nodeVersion":"22.x"}')
+          if [ "$PATCH_STATUS" -lt 200 ] || [ "$PATCH_STATUS" -ge 300 ]; then
+            echo "Unable to lock Vercel Node version: HTTP $PATCH_STATUS"
+            cat /tmp/project-patch.json
+            exit 1
+          fi
+
           mkdir -p .vercel
           jq -n --arg projectId "$PROJECT_ID" --arg orgId "$VERCEL_TEAM_ID" '{projectId:$projectId,orgId:$orgId}' > .vercel/project.json
           echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
-          echo "Project ready: $VERCEL_PROJECT_NAME ($PROJECT_ID)"
+          echo "Project ready with Node 22.x: $VERCEL_PROJECT_NAME ($PROJECT_ID)"
 
-      - name: Pull preview environment
+      - name: Sync Ziwei AI provider environment to production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
+          ZIWEI_AI_API_KEY: ${{ secrets.ZIWEI_AI_API_KEY }}
+          ZIWEI_AI_MODEL: ${{ secrets.ZIWEI_AI_MODEL }}
+          ZIWEI_AI_TIMEOUT_MS: ${{ secrets.ZIWEI_AI_TIMEOUT_MS }}
+          VERCEL_ORG_ID: ${{ env.VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.project.outputs.project_id }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+          upsert_env() {
+            KEY="$1"
+            VALUE="$2"
+            SENSITIVE="${3:-false}"
+            $CLI env rm "$KEY" production --yes --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            if [ "$SENSITIVE" = 'true' ]; then
+              printf '%s' "$VALUE" | $CLI env add "$KEY" production --sensitive --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" >/dev/null
+            else
+              printf '%s' "$VALUE" | $CLI env add "$KEY" production --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" >/dev/null
+            fi
+          }
+          upsert_env ZIWEI_AI_BASE_URL "$ZIWEI_AI_BASE_URL"
+          upsert_env ZIWEI_AI_API_KEY "$ZIWEI_AI_API_KEY" true
+          upsert_env ZIWEI_AI_MODEL "$ZIWEI_AI_MODEL"
+          if [ -n "${ZIWEI_AI_TIMEOUT_MS:-}" ]; then
+            upsert_env ZIWEI_AI_TIMEOUT_MS "$ZIWEI_AI_TIMEOUT_MS"
+          fi
+          echo 'Production AI provider environment synchronized.'
+
+      - name: Pull production environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ env.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ steps.project.outputs.project_id }}
-        run: npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=preview --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=production --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN"
 
-      - name: Build preview
+      - name: Build production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ env.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ steps.project.outputs.project_id }}
-        run: npx --yes vercel@${VERCEL_CLI_VERSION} build --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} build --prod --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN"
 
-      - name: Deploy preview
+      - name: Deploy production
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ env.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ steps.project.outputs.project_id }}
         run: |
-          URL=$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prebuilt --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN")
+          URL=$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prebuilt --prod --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN")
           echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
-          echo "Preview deployed: $URL"
+          echo "Production deployed: $URL"
 
-      - name: Remote preview smoke
+      - name: Authenticated production acceptance
         env:
-          ZIWEI_AI_TARGET_URL: ${{ steps.deploy.outputs.deployment_url }}
-          ZIWEI_AI_REQUIRE_READY: '0'
-          ZIWEI_AI_CHECK_INTERPRET: '0'
-        run: node scripts/remote-smoke.mjs
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ env.VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+
+          $CLI curl /api/health --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" > /tmp/health.json
+          jq -e '.status == "ok"' /tmp/health.json >/dev/null
+
+          $CLI curl /api/ready --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" > /tmp/ready.json
+          jq -e '.ready == true and .aiProvider.state == "ready"' /tmp/ready.json >/dev/null
+
+          $CLI curl /api/ziwei-ai/retrieve --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" -- \
+            --request POST --header 'Content-Type: application/json' \
+            --data '{"query":"紫微 天府","limit":2}' > /tmp/retrieve.json
+          jq -e '.hits | type == "array"' /tmp/retrieve.json >/dev/null
+
+          $CLI curl /api/ziwei-ai/interpret --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" -- \
+            --request POST --header 'Content-Type: application/json' --max-time 90 \
+            --data '{"input":{"calendarType":"solar","date":"2000-8-16","hourIndex":2,"gender":"female"},"topic":"overview","question":"请仅依据命盘事实、格局证据与检索到的古籍证据做一段简要综合解读。"}' > /tmp/interpret.json
+          jq -e '.report.sections | type == "array" and length > 0' /tmp/interpret.json >/dev/null
+          jq -e '.critic | type == "object"' /tmp/interpret.json >/dev/null
+
+          echo 'Authenticated production acceptance passed.'
+          jq '{health:"ok", readiness:"ready", retrievalHits:(input_filename | null)}' /tmp/health.json >/dev/null 2>&1 || true
+          jq '{sections:(.report.sections|length), providerId:(.providerId // null), revised:(.revised // false), criticPassed:(.critic.passed // null)}' /tmp/interpret.json
 
       - name: Summary
         run: |
-          echo '## Vercel Preview Bootstrap' >> "$GITHUB_STEP_SUMMARY"
+          echo '## Vercel Production Bootstrap' >> "$GITHUB_STEP_SUMMARY"
           echo '- Project: `${{ env.VERCEL_PROJECT_NAME }}`' >> "$GITHUB_STEP_SUMMARY"
           echo '- Project ID: `${{ steps.project.outputs.project_id }}`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Runtime: `Node 22.x`' >> "$GITHUB_STEP_SUMMARY"
           echo '- URL: ${{ steps.deploy.outputs.deployment_url }}' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Protected acceptance: `health + ready + RAG + real AI interpretation + Critic`' >> "$GITHUB_STEP_SUMMARY"
