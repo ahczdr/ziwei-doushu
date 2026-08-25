@@ -16,6 +16,7 @@ on:
       - project/ziwei-ai-p9-deployment-automation
       - project/ziwei-ai-p10-vercel-deployment
       - project/ziwei-ai-p11-model-registry
+      - project/ziwei-ai-p12-production-guardrails
   pull_request:
     branches:
       - main
@@ -31,6 +32,7 @@ on:
       - project/ziwei-ai-p9-deployment-automation
       - project/ziwei-ai-p10-vercel-deployment
       - project/ziwei-ai-p11-model-registry
+      - project/ziwei-ai-p12-production-guardrails
 
 concurrency:
   group: ziwei-ai-${{ github.workflow }}-${{ github.ref }}
@@ -56,7 +58,7 @@ jobs:
       - name: TypeScript strict check
         run: npm run typecheck
 
-      - name: P1-P11 regression tests
+      - name: P1-P12 regression tests
         run: npm run test:ziwei-ai
 
       - name: Next.js production build
@@ -74,6 +76,9 @@ jobs:
           ZIWEI_AI_BASE_URL: https://example.invalid/v1
           ZIWEI_AI_API_KEY: ci-placeholder
           ZIWEI_AI_MODEL: ci-model
+          ZIWEI_AI_INTERPRET_ENABLED: 'true'
+          ZIWEI_AI_MAX_INFLIGHT: '2'
+          ZIWEI_AI_MAX_PROVIDER_CALLS: '2'
           NEXT_PUBLIC_SITE_URL: https://example.invalid
 
       - name: Validate Vercel config
