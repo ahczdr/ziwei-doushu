@@ -10,13 +10,18 @@ All notable changes to this fork are documented here. The project follows Semant
 - `GET /api/health` liveness endpoint with secret-safe runtime status.
 - `GET /api/ready` AI readiness endpoint.
 - Production `next start` HTTP smoke test covering health, readiness, classics retrieval and AI fail-closed behavior.
-- Production Docker packaging with non-root runtime user.
+- Production Docker packaging with non-root runtime user and container healthcheck.
 - Deployment and online acceptance runbook.
+- P9 GHCR publication workflow, production Docker Compose template and remote HTTPS acceptance workflow.
+- P10 Vercel project configuration and bootstrap deployment workflow.
+- Production remote acceptance can require AI readiness and execute one live interpretation with Critic validation.
+- Vercel Deployment Protection bypass support in the remote smoke client.
 
 ### Changed
 
-- Release gate now includes P1–P8 tests, production HTTP smoke verification and Docker image build.
-- `verify:release` now includes the production smoke test after build.
+- Release gate now covers P1–P10 tests, production HTTP smoke verification, Docker image build, Compose validation and Vercel deployment configuration validation.
+- `verify:release` includes the production smoke test after build.
+- Remote smoke requests are bounded by timeouts and can enforce production AI readiness.
 
 ## [0.1.0] - 2026-08-24
 
