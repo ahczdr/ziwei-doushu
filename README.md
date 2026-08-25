@@ -1,12 +1,12 @@
 # Ziwei AI Platform
 
-> 当前发布基线：**v0.1.1** · Node.js 22 · Vercel / Docker 可部署
+> 当前发布基线：**v0.1.2** · Node.js 22 · Vercel / Docker 可部署
 
 这是基于 `Renhuai123/ziwei-doushu`、`SylarLong/iztro` 与 `SylarLong/react-iztro` 构建的紫微斗数排盘 + 格局证据 + 古籍检索 + AI 解盘平台。
 
 核心原则：**排盘事实由确定性代码生成，AI 只解释事实，不负责计算星曜、宫位、四化或格局。**
 
-## v0.1.1 能力
+## v0.1.2 能力
 
 - `iztro 2.6.0` 作为确定性排盘事实唯一 Source of Truth
 - `react-iztro 1.5.0` 标准十二宫显示盘，并保留原增强盘
@@ -17,14 +17,18 @@
 - AI 解盘 Agent：综合、事业、财运、感情、传统健康象意
 - Critic：事实 ID、引用 ID、grounding、绝对化措辞和健康边界检查
 - 多模型网关：`responses` / `chat-completions` / `messages`
-- `ZIWEI_AI_API_STYLE=auto` 自动选择协议
+- 声明式模型 Profile：`config/ziwei-ai-model-profiles.json`
+- `ZIWEI_AI_API_STYLE=auto` 自动选择协议，并支持 Profile 级超时
 - 支持 OpenCode Go、OpenAI-compatible 网关、本地 vLLM / Ollama 等服务
 - 429 / 5xx Provider 有界重试
 - `/api/health`、`/api/ready`
-- `/api/ziwei-ai/interpret`、`/api/ziwei-ai/retrieve`
+- `/api/ziwei-ai/models`、`/api/ziwei-ai/interpret`、`/api/ziwei-ai/retrieve`
 - Production HTTP smoke、Docker image、Docker Compose、Vercel 部署门禁
 - Vercel Deployment Protection 下的认证生产验收
-- P1–P10 自动回归测试、TypeScript strict、Next.js production build、critical audit
+- P12 生产费用保护：解释开关、单实例并发上限、单请求 Provider 调用预算、Origin 白名单
+- Vercel Firewall：`POST /api/ziwei-ai/interpret` 按 IP `3 requests / 60s`
+- `/interpret` 响应带 `Cache-Control: no-store` 与 `X-Request-Id`，运行日志不记录出生信息和问题正文
+- P1–P12 自动回归测试、TypeScript strict、Next.js production build、critical audit
 
 ## 架构
 
@@ -60,7 +64,7 @@ AI 不允许重新排盘，也不允许伪造古籍来源。
 ```bash
 git clone https://github.com/ahczdr/ziwei-doushu.git
 cd ziwei-doushu
-git checkout v0.1.1
+git checkout v0.1.2
 npm ci
 cp .env.example .env.local
 npm run dev
@@ -76,12 +80,12 @@ npm run verify:release
 
 所有 Provider 凭证仅允许放在服务端环境变量中，不要使用 `NEXT_PUBLIC_` 前缀。
 
-### OpenCode Go 示例
+基础配置：
 
 ```env
-ZIWEI_AI_BASE_URL=https://opencode.ai/zen/go/v1
+ZIWEI_AI_BASE_URL=https://provider.example/v1
 ZIWEI_AI_API_KEY=your-server-side-api-key
-ZIWEI_AI_MODEL=gpt-5.6-luna
+ZIWEI_AI_MODEL=your-model
 ZIWEI_AI_API_STYLE=auto
 ZIWEI_AI_TIMEOUT_MS=60000
 ```
@@ -94,7 +98,13 @@ chat-completions
 messages
 ```
 
-切换同一网关内的模型通常只需要修改 `ZIWEI_AI_MODEL`。切换供应商时修改 `ZIWEI_AI_BASE_URL`、`ZIWEI_AI_API_KEY` 和模型名即可。
+P11 开始支持声明式模型 Profile；仓库基线位于：
+
+```text
+config/ziwei-ai-model-profiles.json
+```
+
+Provider 凭证仍只从服务端 Secret 注入，不写入 Profile 文件。运行时可通过 `/api/ziwei-ai/models` 获取不含凭证的可选 Profile 列表。
 
 ### 本地 OpenAI-compatible 示例
 
@@ -106,6 +116,33 @@ ZIWEI_AI_API_STYLE=chat-completions
 ```
 
 未配置 Provider 时，AI 解盘 API fail closed；确定性排盘、格局检测和古籍检索仍可独立工作。
+
+## 生产安全与费用控制
+
+P12 为计费接口增加两层保护。
+
+Vercel Firewall：
+
+```text
+Path:   /api/ziwei-ai/interpret
+Method: POST
+Key:    IP
+Limit:  3 requests / 60 seconds
+Action: rate_limit
+```
+
+应用层：
+
+```env
+ZIWEI_AI_INTERPRET_ENABLED=true
+ZIWEI_AI_MAX_INFLIGHT=2
+ZIWEI_AI_MAX_PROVIDER_CALLS=2
+ZIWEI_AI_ALLOWED_ORIGINS=https://ziwei-ai-platform.vercel.app
+```
+
+其中 `MAX_PROVIDER_CALLS=2` 对应“首次生成 + Critic 不通过时最多一次修订”。生产环境可通过关闭 `ZIWEI_AI_INTERPRET_ENABLED` 紧急停止真实模型调用，而不影响确定性排盘和古籍检索。
+
+详细说明见 `docs/P12_PRODUCTION_GUARDRAILS.md`。
 
 ## 部署
 
@@ -127,13 +164,16 @@ ZIWEI_AI_MODEL
 ```text
 ZIWEI_AI_API_STYLE
 ZIWEI_AI_TIMEOUT_MS
+ZIWEI_AI_PROFILES_JSON
+ZIWEI_AI_DEFAULT_PROFILE
 ```
 
-工作流可创建/连接 Vercel Project、同步服务端环境变量、构建并部署。Production 部署完成后使用 Vercel 认证请求验证：
+工作流可创建/连接 Vercel Project、同步服务端环境变量、构建并部署。Production 部署完成后验证：
 
 ```text
 /api/health
 /api/ready
+/api/ziwei-ai/models
 /api/ziwei-ai/retrieve
 /api/ziwei-ai/interpret
 Critic
@@ -144,7 +184,7 @@ Critic
 ### Docker
 
 ```bash
-docker build -t ziwei-ai-platform:0.1.1 .
+docker build -t ziwei-ai-platform:0.1.2 .
 docker compose -f docker-compose.production.yml up -d
 ```
 
@@ -154,6 +194,7 @@ docker compose -f docker-compose.production.yml up -d
 
 - `docs/DEPLOYMENT_AND_ACCEPTANCE_v0.1.1.md`
 - `docs/P10_VERCEL_DEPLOYMENT.md`
+- `docs/P12_PRODUCTION_GUARDRAILS.md`
 
 ## 测试分层
 
@@ -168,6 +209,8 @@ P7   Platform input + API boundary
 P8   Runtime health/readiness + deployment smoke
 P9   GHCR / Compose / remote acceptance
 P10  Vercel production + switchable model gateway
+P11  Declarative model profiles / runtime model selection
+P12  Production safety / cost guardrails / request tracing
 ```
 
 执行全部测试：
@@ -176,7 +219,7 @@ P10  Vercel production + switchable model gateway
 npm test
 ```
 
-Release Gate 额外执行 production build、HTTP smoke、Docker build、Compose 校验、Vercel config 校验与 critical npm audit。
+Release Gate 额外执行 production build、HTTP smoke、Docker build、Compose 校验、Vercel config 校验、模型 Profile 校验与 critical npm audit。
 
 ## 古籍与引用
 
@@ -208,7 +251,7 @@ RAG 层区分古籍原著的历史/公版状态与仓库内电子转录文本的
 - `package-lock.json`
 - `VERSION`
 - `CHANGELOG.md`
-- `docs/RELEASE_NOTES_v0.1.1.md`
+- `docs/RELEASE_NOTES_v0.1.2.md`
 
 开发分支 `project/ziwei-ai-p*` 保留为历史过程；正式发布基线统一从 `release/*` 管理，已发布 Tag 不移动。
 
