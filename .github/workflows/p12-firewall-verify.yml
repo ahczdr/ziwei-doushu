@@ -1,0 +1,32 @@
+name: P12 Firewall Verify
+
+on:
+  push:
+    branches:
+      - ops/p12-preview-acceptance
+    paths:
+      - '.github/workflows/p12-firewall-verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify 3 per 60s IP limit without model calls
+        run: |
+          set -euo pipefail
+          URL='https://ziwei-ai-platform.vercel.app/api/ziwei-ai/interpret'
+          for i in 1 2 3 4; do
+            code=$(curl --silent --show-error --output "/tmp/rate-$i.txt" --write-out '%{http_code}' \
+              --request POST --header 'Content-Type: application/json' --data '{}' "$URL")
+            echo "request $i -> HTTP $code"
+            printf '%s' "$code" > "/tmp/rate-$i.code"
+          done
+          for i in 1 2 3; do
+            test "$(cat /tmp/rate-$i.code)" != '429'
+          done
+          test "$(cat /tmp/rate-4.code)" = '429'
+          echo 'Live edge rate limit verified: fourth matching request returned HTTP 429.'
