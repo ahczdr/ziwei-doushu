@@ -5,13 +5,17 @@ import {
   UnknownModelProfileError,
 } from '../model-registry';
 
+function testEnv(values: Record<string, string>): NodeJS.ProcessEnv {
+  return { NODE_ENV: 'test', ...values };
+}
+
 test('P11 keeps legacy single-provider environment as the default runtime profile', () => {
-  const registry = modelRegistryFromEnv({
+  const registry = modelRegistryFromEnv(testEnv({
     ZIWEI_AI_BASE_URL: 'https://opencode.ai/zen/go/v1',
     ZIWEI_AI_API_KEY: 'server-secret',
     ZIWEI_AI_MODEL: 'gpt-5.6-luna',
     ZIWEI_AI_API_STYLE: 'auto',
-  });
+  }));
   assert.ok(registry);
   assert.equal(registry.defaultProfileId, 'default');
   assert.deepEqual(registry.listPublicProfiles(), [{
@@ -25,7 +29,7 @@ test('P11 keeps legacy single-provider environment as the default runtime profil
 });
 
 test('P11 registers multiple OpenCode Go models with per-model automatic protocol routing', () => {
-  const registry = modelRegistryFromEnv({
+  const registry = modelRegistryFromEnv(testEnv({
     ZIWEI_AI_BASE_URL: 'https://opencode.ai/zen/go/v1',
     ZIWEI_AI_API_KEY: 'server-secret',
     ZIWEI_AI_MODEL: 'gpt-5.6-luna',
@@ -35,7 +39,7 @@ test('P11 registers multiple OpenCode Go models with per-model automatic protoco
       { id: 'qwen', label: 'Qwen 3.7 Plus', model: 'qwen3.7-plus' },
       { id: 'kimi', label: 'Kimi K3', model: 'kimi-k3' },
     ]),
-  });
+  }));
   assert.ok(registry);
   assert.equal(registry.defaultProfileId, 'qwen');
 
@@ -53,7 +57,7 @@ test('P11 registers multiple OpenCode Go models with per-model automatic protoco
 });
 
 test('P11 supports a profile-only provider through an environment-variable secret reference', () => {
-  const registry = modelRegistryFromEnv({
+  const registry = modelRegistryFromEnv(testEnv({
     OPENAI_RUNTIME_KEY: 'another-secret',
     ZIWEI_AI_PROFILES_JSON: JSON.stringify([
       {
@@ -66,7 +70,7 @@ test('P11 supports a profile-only provider through an environment-variable secre
         timeoutMs: 45_000,
       },
     ]),
-  });
+  }));
   assert.ok(registry);
   assert.equal(registry.defaultProfileId, 'openai');
   assert.equal(registry.defaultTimeoutMs, 45_000);
@@ -84,37 +88,37 @@ test('P11 rejects raw secrets, duplicate IDs, missing referenced secrets and unk
     ZIWEI_AI_MODEL: 'base-model',
   };
 
-  assert.throws(() => modelRegistryFromEnv({
+  assert.throws(() => modelRegistryFromEnv(testEnv({
     ...legacy,
     ZIWEI_AI_PROFILES_JSON: JSON.stringify([{ id: 'unsafe', model: 'x', apiKey: 'raw-secret' }]),
-  }), /must not contain raw apiKey/);
+  })), /must not contain raw apiKey/);
 
-  assert.throws(() => modelRegistryFromEnv({
+  assert.throws(() => modelRegistryFromEnv(testEnv({
     ...legacy,
     ZIWEI_AI_PROFILES_JSON: JSON.stringify([{ id: 'default', model: 'duplicate' }]),
-  }), /duplicate model profile id/);
+  })), /duplicate model profile id/);
 
-  assert.throws(() => modelRegistryFromEnv({
+  assert.throws(() => modelRegistryFromEnv(testEnv({
     ZIWEI_AI_PROFILES_JSON: JSON.stringify([{
       id: 'missing-key',
       model: 'x',
       baseUrl: 'https://gateway.example/v1',
       apiKeyEnv: 'MISSING_RUNTIME_KEY',
     }]),
-  }), /missing server secret/);
+  })), /missing server secret/);
 
-  assert.throws(() => modelRegistryFromEnv({
+  assert.throws(() => modelRegistryFromEnv(testEnv({
     ...legacy,
     ZIWEI_AI_DEFAULT_PROFILE: 'does-not-exist',
-  }), /unknown profile/);
+  })), /unknown profile/);
 });
 
 test('P11 distinguishes an unknown requested model profile from registry misconfiguration', () => {
-  const registry = modelRegistryFromEnv({
+  const registry = modelRegistryFromEnv(testEnv({
     ZIWEI_AI_BASE_URL: 'https://gateway.example/v1',
     ZIWEI_AI_API_KEY: 'secret',
     ZIWEI_AI_MODEL: 'base-model',
-  });
+  }));
   assert.ok(registry);
   assert.throws(() => registry.select('missing'), UnknownModelProfileError);
 });
