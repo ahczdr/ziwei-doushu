@@ -1,0 +1,161 @@
+name: P11 Preview Dual Model Validation
+
+on:
+  push:
+    branches:
+      - ops/p11-preview-validation
+    paths:
+      - '.github/workflows/p11-preview-dual-model.yml'
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_CLI_VERSION: '59.5.0'
+  VERCEL_TEAM_ID: team_qPw2lbnCHwH2czTLcopawsqH
+  VERCEL_PROJECT_NAME: ziwei-ai-platform
+  ZIWEI_AI_PROFILES_JSON: '[{"id":"qwen-plus","label":"Qwen3.7 Plus","model":"qwen3.7-plus","apiStyle":"auto"}]'
+  ZIWEI_AI_DEFAULT_PROFILE: default
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout audited main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate existing server-side secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
+          ZIWEI_AI_API_KEY: ${{ secrets.ZIWEI_AI_API_KEY }}
+          ZIWEI_AI_MODEL: ${{ secrets.ZIWEI_AI_MODEL }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          test -n "$ZIWEI_AI_BASE_URL"
+          test -n "$ZIWEI_AI_API_KEY"
+          test -n "$ZIWEI_AI_MODEL"
+
+      - name: Link Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+          $CLI link --yes --project "$VERCEL_PROJECT_NAME" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Configure Preview provider and model profiles
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
+          ZIWEI_AI_API_KEY: ${{ secrets.ZIWEI_AI_API_KEY }}
+          ZIWEI_AI_MODEL: ${{ secrets.ZIWEI_AI_MODEL }}
+          ZIWEI_AI_API_STYLE: ${{ secrets.ZIWEI_AI_API_STYLE }}
+          ZIWEI_AI_TIMEOUT_MS: ${{ secrets.ZIWEI_AI_TIMEOUT_MS }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+          upsert_env() {
+            KEY="$1"
+            VALUE="$2"
+            SENSITIVE="${3:-false}"
+            $CLI env rm "$KEY" preview --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            if [ "$SENSITIVE" = "true" ]; then
+              printf '%s' "$VALUE" | $CLI env add "$KEY" preview --sensitive --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
+            else
+              printf '%s' "$VALUE" | $CLI env add "$KEY" preview --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
+            fi
+          }
+          upsert_env ZIWEI_AI_BASE_URL "$ZIWEI_AI_BASE_URL"
+          upsert_env ZIWEI_AI_API_KEY "$ZIWEI_AI_API_KEY" true
+          upsert_env ZIWEI_AI_MODEL "$ZIWEI_AI_MODEL"
+          upsert_env ZIWEI_AI_API_STYLE "${ZIWEI_AI_API_STYLE:-auto}"
+          upsert_env ZIWEI_AI_PROFILES_JSON "$ZIWEI_AI_PROFILES_JSON" true
+          upsert_env ZIWEI_AI_DEFAULT_PROFILE "$ZIWEI_AI_DEFAULT_PROFILE"
+          if [ -n "${ZIWEI_AI_TIMEOUT_MS:-}" ]; then
+            upsert_env ZIWEI_AI_TIMEOUT_MS "$ZIWEI_AI_TIMEOUT_MS"
+          fi
+
+      - name: Pull Preview environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=preview --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Build Preview output
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} build --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Deploy audited main to Preview
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL=$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prebuilt --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN")
+          echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Preview deployed: $URL"
+
+      - name: Validate model registry and run two real interpretations
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+
+          $CLI curl /api/health --deployment "$DEPLOYMENT_URL" > /tmp/health.json
+          jq -e '.status == "ok"' /tmp/health.json >/dev/null
+
+          $CLI curl /api/ready --deployment "$DEPLOYMENT_URL" > /tmp/ready.json
+          jq -e '.ready == true and .aiProvider.state == "configured"' /tmp/ready.json >/dev/null
+
+          $CLI curl /api/ziwei-ai/models --deployment "$DEPLOYMENT_URL" > /tmp/models.json
+          jq -e '.configured == true' /tmp/models.json >/dev/null
+          jq -e '(.profiles | map(.id) | index("default")) != null' /tmp/models.json >/dev/null
+          jq -e '(.profiles | map(.id) | index("qwen-plus")) != null' /tmp/models.json >/dev/null
+          jq -e '(.profiles | map(select(.id == "qwen-plus"))[0].model) == "qwen3.7-plus"' /tmp/models.json >/dev/null
+
+          COMMON='{"input":{"calendarType":"solar","date":"2000-8-16","hourIndex":2,"gender":"female"},"topic":"overview","question":"请仅依据命盘事实、格局证据与检索到的古籍证据，给出简洁综合解读。"}'
+          DEFAULT_PAYLOAD=$(printf '%s' "$COMMON" | jq -c '. + {modelProfileId:"default"}')
+          QWEN_PAYLOAD=$(printf '%s' "$COMMON" | jq -c '. + {modelProfileId:"qwen-plus"}')
+
+          $CLI curl /api/ziwei-ai/interpret --deployment "$DEPLOYMENT_URL" -- \
+            --request POST --header 'Content-Type: application/json' --max-time 120 \
+            --data "$DEFAULT_PAYLOAD" > /tmp/default.json
+          jq -e '.modelProfile.id == "default"' /tmp/default.json >/dev/null
+          jq -e '.report.sections | type == "array" and length > 0' /tmp/default.json >/dev/null
+          jq -e '.critic | type == "object"' /tmp/default.json >/dev/null
+          jq -e '.critic.passed == true' /tmp/default.json >/dev/null
+
+          $CLI curl /api/ziwei-ai/interpret --deployment "$DEPLOYMENT_URL" -- \
+            --request POST --header 'Content-Type: application/json' --max-time 120 \
+            --data "$QWEN_PAYLOAD" > /tmp/qwen.json
+          jq -e '.modelProfile.id == "qwen-plus" and .modelProfile.model == "qwen3.7-plus"' /tmp/qwen.json >/dev/null
+          jq -e '.report.sections | type == "array" and length > 0' /tmp/qwen.json >/dev/null
+          jq -e '.critic | type == "object"' /tmp/qwen.json >/dev/null
+          jq -e '.critic.passed == true' /tmp/qwen.json >/dev/null
+
+          DEFAULT_PROVIDER=$(jq -r '.providerId // empty' /tmp/default.json)
+          QWEN_PROVIDER=$(jq -r '.providerId // empty' /tmp/qwen.json)
+          test -n "$DEFAULT_PROVIDER"
+          test -n "$QWEN_PROVIDER"
+          test "$DEFAULT_PROVIDER" != "$QWEN_PROVIDER"
+
+          echo '## P11 dual-model Preview acceptance' >> "$GITHUB_STEP_SUMMARY"
+          echo "- Preview: $DEPLOYMENT_URL" >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"- Default: profile=`\(.modelProfile.id)` model=`\(.modelProfile.model)` provider=`\(.providerId)` critic=`\(.critic.passed)` sections=`\(.report.sections|length)`"' /tmp/default.json >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"- Qwen: profile=`\(.modelProfile.id)` model=`\(.modelProfile.model)` provider=`\(.providerId)` critic=`\(.critic.passed)` sections=`\(.report.sections|length)`"' /tmp/qwen.json >> "$GITHUB_STEP_SUMMARY"
