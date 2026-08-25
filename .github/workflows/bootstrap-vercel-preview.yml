@@ -154,25 +154,24 @@ jobs:
           set -euo pipefail
           CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
 
-          $CLI curl /api/health --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" > /tmp/health.json
+          $CLI curl /api/health --deployment "$DEPLOYMENT_URL" > /tmp/health.json
           jq -e '.status == "ok"' /tmp/health.json >/dev/null
 
-          $CLI curl /api/ready --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" > /tmp/ready.json
+          $CLI curl /api/ready --deployment "$DEPLOYMENT_URL" > /tmp/ready.json
           jq -e '.ready == true and .aiProvider.state == "ready"' /tmp/ready.json >/dev/null
 
-          $CLI curl /api/ziwei-ai/retrieve --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" -- \
+          $CLI curl /api/ziwei-ai/retrieve --deployment "$DEPLOYMENT_URL" -- \
             --request POST --header 'Content-Type: application/json' \
             --data '{"query":"紫微 天府","limit":2}' > /tmp/retrieve.json
           jq -e '.hits | type == "array"' /tmp/retrieve.json >/dev/null
 
-          $CLI curl /api/ziwei-ai/interpret --deployment "$DEPLOYMENT_URL" --scope "$VERCEL_TEAM_SLUG" --token "$VERCEL_TOKEN" -- \
+          $CLI curl /api/ziwei-ai/interpret --deployment "$DEPLOYMENT_URL" -- \
             --request POST --header 'Content-Type: application/json' --max-time 90 \
             --data '{"input":{"calendarType":"solar","date":"2000-8-16","hourIndex":2,"gender":"female"},"topic":"overview","question":"请仅依据命盘事实、格局证据与检索到的古籍证据做一段简要综合解读。"}' > /tmp/interpret.json
           jq -e '.report.sections | type == "array" and length > 0' /tmp/interpret.json >/dev/null
           jq -e '.critic | type == "object"' /tmp/interpret.json >/dev/null
 
           echo 'Authenticated production acceptance passed.'
-          jq '{health:"ok", readiness:"ready", retrievalHits:(input_filename | null)}' /tmp/health.json >/dev/null 2>&1 || true
           jq '{sections:(.report.sections|length), providerId:(.providerId // null), revised:(.revised // false), criticPassed:(.critic.passed // null)}' /tmp/interpret.json
 
       - name: Summary
