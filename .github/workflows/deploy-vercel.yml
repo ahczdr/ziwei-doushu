@@ -67,7 +67,7 @@ jobs:
           fi
           $CLI link --yes --project "$VERCEL_PROJECT_NAME" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
 
-      - name: Validate provider secrets before production sync
+      - name: Validate provider secrets before environment sync
         if: inputs.sync_ai_env
         env:
           ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
@@ -88,6 +88,7 @@ jobs:
           ZIWEI_AI_API_STYLE: ${{ secrets.ZIWEI_AI_API_STYLE }}
           ZIWEI_AI_TIMEOUT_MS: ${{ secrets.ZIWEI_AI_TIMEOUT_MS }}
         run: |
+          set -euo pipefail
           CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
           ENVIRONMENT="${{ inputs.target }}"
           upsert_env() {
@@ -96,16 +97,16 @@ jobs:
             SENSITIVE="${3:-false}"
             $CLI env rm "$KEY" "$ENVIRONMENT" --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
             if [ "$SENSITIVE" = "true" ]; then
-              printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --sensitive --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+              printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --sensitive --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
             else
-              printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+              printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
             fi
           }
           upsert_env ZIWEI_AI_BASE_URL "$ZIWEI_AI_BASE_URL"
           upsert_env ZIWEI_AI_API_KEY "$ZIWEI_AI_API_KEY" true
           upsert_env ZIWEI_AI_MODEL "$ZIWEI_AI_MODEL"
           upsert_env ZIWEI_AI_API_STYLE "${ZIWEI_AI_API_STYLE:-auto}"
-          if [ -n "$ZIWEI_AI_TIMEOUT_MS" ]; then
+          if [ -n "${ZIWEI_AI_TIMEOUT_MS:-}" ]; then
             upsert_env ZIWEI_AI_TIMEOUT_MS "$ZIWEI_AI_TIMEOUT_MS"
           fi
 
@@ -138,12 +139,37 @@ jobs:
           echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
           echo "Deployed: $URL"
 
-      - name: Remote deployment smoke
+      - name: Authenticated deployment acceptance
         env:
-          ZIWEI_AI_TARGET_URL: ${{ steps.deploy.outputs.deployment_url }}
-          ZIWEI_AI_REQUIRE_READY: ${{ inputs.target == 'production' && '1' || '0' }}
-          ZIWEI_AI_CHECK_INTERPRET: ${{ inputs.target == 'production' && '1' || '0' }}
-        run: node scripts/remote-smoke.mjs
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+
+          $CLI curl /api/health --deployment "$DEPLOYMENT_URL" > /tmp/health.json
+          jq -e '.status == "ok"' /tmp/health.json >/dev/null
+
+          $CLI curl /api/ready --deployment "$DEPLOYMENT_URL" > /tmp/ready.json
+          if [ "${{ inputs.target }}" = "production" ]; then
+            jq -e '.ready == true and .aiProvider.state == "configured"' /tmp/ready.json >/dev/null
+          fi
+
+          $CLI curl /api/ziwei-ai/retrieve --deployment "$DEPLOYMENT_URL" -- \
+            --request POST --header 'Content-Type: application/json' \
+            --data '{"query":"紫微 天府","limit":2}' > /tmp/retrieve.json
+          jq -e '.hits | type == "array"' /tmp/retrieve.json >/dev/null
+
+          if [ "${{ inputs.target }}" = "production" ]; then
+            $CLI curl /api/ziwei-ai/interpret --deployment "$DEPLOYMENT_URL" -- \
+              --request POST --header 'Content-Type: application/json' --max-time 90 \
+              --data '{"input":{"calendarType":"solar","date":"2000-8-16","hourIndex":2,"gender":"female"},"topic":"overview","question":"请仅依据命盘事实、格局证据与检索到的古籍证据做一段简要综合解读。"}' > /tmp/interpret.json
+            jq -e '.report.sections | type == "array" and length > 0' /tmp/interpret.json >/dev/null
+            jq -e '.critic | type == "object"' /tmp/interpret.json >/dev/null
+            jq '{sections:(.report.sections|length),providerId:(.providerId // null),revised:(.revised // false),criticPassed:(.critic.passed // null)}' /tmp/interpret.json
+          fi
+
+          echo 'Authenticated Vercel acceptance passed.'
 
       - name: Deployment summary
         run: |
