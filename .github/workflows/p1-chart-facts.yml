@@ -12,6 +12,7 @@ on:
       - project/ziwei-ai-p5-agent
       - project/ziwei-ai-p6-critic
       - project/ziwei-ai-p7-platform
+      - project/ziwei-ai-p8-deployment
   pull_request:
     branches:
       - main
@@ -23,11 +24,12 @@ on:
       - project/ziwei-ai-p5-agent
       - project/ziwei-ai-p6-critic
       - project/ziwei-ai-p7-platform
+      - project/ziwei-ai-p8-deployment
 
 jobs:
   release-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,11 +46,14 @@ jobs:
       - name: TypeScript strict check
         run: npm run typecheck
 
-      - name: P1-P7 regression tests
+      - name: P1-P8 regression tests
         run: npm run test:ziwei-ai
 
       - name: Next.js production build
         run: npm run build
+
+      - name: Production HTTP smoke test
+        run: npm run smoke:production
 
       - name: Critical dependency audit
         run: npm audit --audit-level=critical
