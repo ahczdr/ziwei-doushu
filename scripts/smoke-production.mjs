@@ -54,6 +54,11 @@ try {
     throw new Error(`unexpected health payload: ${JSON.stringify(health)}`);
   }
 
+  const readiness = await assertJson(await fetch(`${baseUrl}/api/ready`, { cache: 'no-store' }), 503, 'AI readiness');
+  if (readiness.ready !== false || readiness.aiProvider?.state !== 'missing') {
+    throw new Error(`unexpected readiness payload: ${JSON.stringify(readiness)}`);
+  }
+
   const retrieval = await assertJson(await fetch(`${baseUrl}/api/ziwei-ai/retrieve`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -80,6 +85,7 @@ try {
 
   console.log('Production smoke test passed:', {
     health: health.status,
+    readiness: readiness.ready,
     aiProvider: health.aiProvider.state,
     retrievalHits: retrieval.hits.length,
     providerGuard: interpret.error,
