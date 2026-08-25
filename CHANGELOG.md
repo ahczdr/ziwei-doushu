@@ -2,6 +2,22 @@
 
 All notable changes to this fork are documented here. The project follows Semantic Versioning while the public API is still pre-1.0.
 
+## [Unreleased]
+
+### Added
+
+- P8 deployment-readiness layer targeting `v0.1.1`.
+- `GET /api/health` liveness endpoint with secret-safe runtime status.
+- `GET /api/ready` AI readiness endpoint.
+- Production `next start` HTTP smoke test covering health, readiness, classics retrieval and AI fail-closed behavior.
+- Production Docker packaging with non-root runtime user.
+- Deployment and online acceptance runbook.
+
+### Changed
+
+- Release gate now includes P1–P8 tests, production HTTP smoke verification and Docker image build.
+- `verify:release` now includes the production smoke test after build.
+
 ## [0.1.0] - 2026-08-24
 
 ### Added
