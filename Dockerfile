@@ -28,4 +28,4 @@ COPY package.json package-lock.json ./
 
 USER nextjs
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-p", "3000"]
