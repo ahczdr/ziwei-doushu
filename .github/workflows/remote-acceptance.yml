@@ -7,10 +7,24 @@ on:
         description: 'Deployed site base URL, e.g. https://example.com'
         required: true
         type: string
+      require_ready:
+        description: 'Require AI provider readiness (recommended for production)'
+        required: true
+        default: false
+        type: boolean
+      check_interpret:
+        description: 'Execute one live AI interpretation request'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,4 +33,7 @@ jobs:
       - name: Remote smoke test
         env:
           ZIWEI_AI_TARGET_URL: ${{ inputs.target_url }}
+          ZIWEI_AI_REQUIRE_READY: ${{ inputs.require_ready && '1' || '0' }}
+          ZIWEI_AI_CHECK_INTERPRET: ${{ inputs.check_interpret && '1' || '0' }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node scripts/remote-smoke.mjs

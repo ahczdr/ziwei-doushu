@@ -1,4 +1,4 @@
-import { providerFromEnv } from '@/lib/ziwei-ai/ai-agent';
+import { providerFromEnv } from '@/lib/ziwei-ai/ai-agent/runtime-provider';
 import { interpretWithCritic } from '@/lib/ziwei-ai/critic';
 import { parseInterpretApiPayload } from '@/lib/ziwei-ai/platform';
 
@@ -17,7 +17,17 @@ export async function POST(request: Request) {
   const payload = parseInterpretApiPayload(body);
   if (!payload) return Response.json({ error: 'invalid-chart-input' }, { status: 400 });
 
-  const provider = providerFromEnv();
+  let provider;
+  try {
+    provider = providerFromEnv();
+  } catch (error) {
+    console.error('ziwei-ai provider configuration invalid', error);
+    return Response.json({
+      error: 'ai-provider-invalid',
+      message: '服务端 AI Provider 配置无效，请检查 Base URL、模型名与 API 协议设置。',
+    }, { status: 503 });
+  }
+
   if (!provider) {
     return Response.json({
       error: 'ai-provider-not-configured',

@@ -1,0 +1,154 @@
+name: Deploy to Vercel
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+      project_name:
+        description: Vercel project name
+        required: true
+        default: ziwei-ai-platform
+        type: string
+      sync_ai_env:
+        description: Sync Ziwei AI provider settings from GitHub Secrets to Vercel
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-${{ github.ref }}-${{ inputs.target }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_CLI_VERSION: '59.5.0'
+  VERCEL_TEAM_ID: team_qPw2lbnCHwH2czTLcopawsqH
+  VERCEL_PROJECT_NAME: ${{ inputs.project_name }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate Vercel token
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          test -n "$VERCEL_TOKEN" || { echo 'Missing GitHub Actions secret: VERCEL_TOKEN'; exit 1; }
+
+      - name: Create or inspect Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+          if ! $CLI project inspect "$VERCEL_PROJECT_NAME" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null 2>&1; then
+            $CLI project add "$VERCEL_PROJECT_NAME" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          fi
+          $CLI link --yes --project "$VERCEL_PROJECT_NAME" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Validate provider secrets before production sync
+        if: inputs.sync_ai_env
+        env:
+          ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
+          ZIWEI_AI_API_KEY: ${{ secrets.ZIWEI_AI_API_KEY }}
+          ZIWEI_AI_MODEL: ${{ secrets.ZIWEI_AI_MODEL }}
+        run: |
+          test -n "$ZIWEI_AI_BASE_URL" || { echo 'Missing secret: ZIWEI_AI_BASE_URL'; exit 1; }
+          test -n "$ZIWEI_AI_API_KEY" || { echo 'Missing secret: ZIWEI_AI_API_KEY'; exit 1; }
+          test -n "$ZIWEI_AI_MODEL" || { echo 'Missing secret: ZIWEI_AI_MODEL'; exit 1; }
+
+      - name: Sync Ziwei AI provider environment
+        if: inputs.sync_ai_env
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
+          ZIWEI_AI_API_KEY: ${{ secrets.ZIWEI_AI_API_KEY }}
+          ZIWEI_AI_MODEL: ${{ secrets.ZIWEI_AI_MODEL }}
+          ZIWEI_AI_API_STYLE: ${{ secrets.ZIWEI_AI_API_STYLE }}
+          ZIWEI_AI_TIMEOUT_MS: ${{ secrets.ZIWEI_AI_TIMEOUT_MS }}
+        run: |
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+          ENVIRONMENT="${{ inputs.target }}"
+          upsert_env() {
+            KEY="$1"
+            VALUE="$2"
+            SENSITIVE="${3:-false}"
+            $CLI env rm "$KEY" "$ENVIRONMENT" --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            if [ "$SENSITIVE" = "true" ]; then
+              printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --sensitive --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+            else
+              printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+            fi
+          }
+          upsert_env ZIWEI_AI_BASE_URL "$ZIWEI_AI_BASE_URL"
+          upsert_env ZIWEI_AI_API_KEY "$ZIWEI_AI_API_KEY" true
+          upsert_env ZIWEI_AI_MODEL "$ZIWEI_AI_MODEL"
+          upsert_env ZIWEI_AI_API_STYLE "${ZIWEI_AI_API_STYLE:-auto}"
+          if [ -n "$ZIWEI_AI_TIMEOUT_MS" ]; then
+            upsert_env ZIWEI_AI_TIMEOUT_MS "$ZIWEI_AI_TIMEOUT_MS"
+          fi
+
+      - name: Pull Vercel environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment="${{ inputs.target }}" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Build Vercel output
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ "${{ inputs.target }}" = "production" ]; then
+            npx --yes vercel@${VERCEL_CLI_VERSION} build --prod --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          else
+            npx --yes vercel@${VERCEL_CLI_VERSION} build --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          fi
+
+      - name: Deploy prebuilt output
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ "${{ inputs.target }}" = "production" ]; then
+            URL=$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prebuilt --prod --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN")
+          else
+            URL=$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prebuilt --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN")
+          fi
+          echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $URL"
+
+      - name: Remote deployment smoke
+        env:
+          ZIWEI_AI_TARGET_URL: ${{ steps.deploy.outputs.deployment_url }}
+          ZIWEI_AI_REQUIRE_READY: ${{ inputs.target == 'production' && '1' || '0' }}
+          ZIWEI_AI_CHECK_INTERPRET: ${{ inputs.target == 'production' && '1' || '0' }}
+        run: node scripts/remote-smoke.mjs
+
+      - name: Deployment summary
+        run: |
+          echo '## Vercel deployment' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Target: `${{ inputs.target }}`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Project: `${{ inputs.project_name }}`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Model routing: `auto / responses / chat-completions / messages`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- URL: ${{ steps.deploy.outputs.deployment_url }}' >> "$GITHUB_STEP_SUMMARY"
