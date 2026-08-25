@@ -13,6 +13,7 @@ on:
       - project/ziwei-ai-p6-critic
       - project/ziwei-ai-p7-platform
       - project/ziwei-ai-p8-deployment
+      - project/ziwei-ai-p9-deployment-automation
   pull_request:
     branches:
       - main
@@ -25,6 +26,7 @@ on:
       - project/ziwei-ai-p6-critic
       - project/ziwei-ai-p7-platform
       - project/ziwei-ai-p8-deployment
+      - project/ziwei-ai-p9-deployment-automation
 
 concurrency:
   group: ziwei-ai-${{ github.workflow }}-${{ github.ref }}
@@ -50,7 +52,7 @@ jobs:
       - name: TypeScript strict check
         run: npm run typecheck
 
-      - name: P1-P8 regression tests
+      - name: P1-P9 regression tests
         run: npm run test:ziwei-ai
 
       - name: Next.js production build
@@ -61,6 +63,14 @@ jobs:
 
       - name: Production Docker image build
         run: docker build --tag ziwei-ai-platform:ci .
+
+      - name: Validate production compose
+        run: docker compose -f docker-compose.production.yml config >/dev/null
+        env:
+          ZIWEI_AI_BASE_URL: https://example.invalid/v1
+          ZIWEI_AI_API_KEY: ci-placeholder
+          ZIWEI_AI_MODEL: ci-model
+          NEXT_PUBLIC_SITE_URL: https://example.invalid
 
       - name: Critical dependency audit
         run: npm audit --audit-level=critical
