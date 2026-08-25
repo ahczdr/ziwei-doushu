@@ -14,6 +14,7 @@ on:
       - project/ziwei-ai-p7-platform
       - project/ziwei-ai-p8-deployment
       - project/ziwei-ai-p9-deployment-automation
+      - project/ziwei-ai-p10-vercel-deployment
   pull_request:
     branches:
       - main
@@ -27,6 +28,7 @@ on:
       - project/ziwei-ai-p7-platform
       - project/ziwei-ai-p8-deployment
       - project/ziwei-ai-p9-deployment-automation
+      - project/ziwei-ai-p10-vercel-deployment
 
 concurrency:
   group: ziwei-ai-${{ github.workflow }}-${{ github.ref }}
@@ -52,7 +54,7 @@ jobs:
       - name: TypeScript strict check
         run: npm run typecheck
 
-      - name: P1-P9 regression tests
+      - name: P1-P10 regression tests
         run: npm run test:ziwei-ai
 
       - name: Next.js production build
@@ -71,6 +73,9 @@ jobs:
           ZIWEI_AI_API_KEY: ci-placeholder
           ZIWEI_AI_MODEL: ci-model
           NEXT_PUBLIC_SITE_URL: https://example.invalid
+
+      - name: Validate Vercel config
+        run: npm run test:p10
 
       - name: Critical dependency audit
         run: npm audit --audit-level=critical
