@@ -32,6 +32,11 @@ interface ApiResult {
   modelProfile?: ModelProfile;
 }
 
+interface ApiErrorPayload {
+  error?: string;
+  message?: string;
+}
+
 const TOPICS: Array<{ id: InterpretationTopic; label: string }> = [
   { id: 'overview', label: '综合' },
   { id: 'career', label: '事业' },
@@ -39,6 +44,17 @@ const TOPICS: Array<{ id: InterpretationTopic; label: string }> = [
   { id: 'relationship', label: '感情' },
   { id: 'health-cultural', label: '传统健康象意' },
 ];
+
+function errorMessageForStatus(status: number, payload: ApiErrorPayload | null) {
+  if (payload?.message) return payload.message;
+  if (status === 429) return '请求过于频繁，请等待约 1 分钟后重试。';
+  if (status === 403) return '当前页面来源未获授权，请从正式站点进入后重试。';
+  if (status === 503) return 'AI 服务暂时不可用或繁忙，请稍后重试。';
+  if (status === 502) return '上游模型响应失败，请稍后重试或切换其他模型。';
+  if (status === 413) return '本次问题内容过长，请精简后重试。';
+  if (payload?.error) return payload.error;
+  return `AI 解读请求失败（HTTP ${status}）`;
+}
 
 export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
   const [topic, setTopic] = useState<InterpretationTopic>('overview');
@@ -86,8 +102,19 @@ export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
           modelProfileId: selectedProfileId || undefined,
         }),
       });
-      const payload = await response.json() as ApiResult & { error?: string; message?: string };
-      if (!response.ok) throw new Error(payload.message || payload.error || `HTTP ${response.status}`);
+
+      const responseText = await response.text();
+      let payload: (ApiResult & ApiErrorPayload) | null = null;
+      if (responseText) {
+        try {
+          payload = JSON.parse(responseText) as ApiResult & ApiErrorPayload;
+        } catch {
+          payload = null;
+        }
+      }
+
+      if (!response.ok) throw new Error(errorMessageForStatus(response.status, payload));
+      if (!payload?.report || !payload.critic) throw new Error('AI 返回结果格式异常，请稍后重试。');
       setResult(payload);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'AI 解读请求失败');
