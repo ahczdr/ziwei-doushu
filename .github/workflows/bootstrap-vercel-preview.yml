@@ -158,7 +158,7 @@ jobs:
           jq -e '.status == "ok"' /tmp/health.json >/dev/null
 
           $CLI curl /api/ready --deployment "$DEPLOYMENT_URL" > /tmp/ready.json
-          jq -e '.ready == true and .aiProvider.state == "ready"' /tmp/ready.json >/dev/null
+          jq -e '.ready == true and .aiProvider.state == "configured"' /tmp/ready.json >/dev/null
 
           $CLI curl /api/ziwei-ai/retrieve --deployment "$DEPLOYMENT_URL" -- \
             --request POST --header 'Content-Type: application/json' \
