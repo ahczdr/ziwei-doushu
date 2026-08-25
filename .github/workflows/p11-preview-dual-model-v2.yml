@@ -14,7 +14,7 @@ env:
   VERCEL_CLI_VERSION: '59.5.0'
   VERCEL_TEAM_ID: team_qPw2lbnCHwH2czTLcopawsqH
   VERCEL_PROJECT_NAME: ziwei-ai-platform
-  ZIWEI_AI_PROFILES_JSON: '[{"id":"qwen-plus","label":"Qwen3.7 Plus","model":"qwen3.7-plus","apiStyle":"auto"}]'
+  ZIWEI_AI_PROFILES_JSON: '[{"id":"qwen-plus","label":"Qwen3.7 Plus","model":"qwen3.7-plus","apiStyle":"auto","timeoutMs":120000}]'
 
 jobs:
   validate:
@@ -142,7 +142,7 @@ jobs:
           jq -e '.critic.passed == true' /tmp/default.json >/dev/null
 
           $CLI curl /api/ziwei-ai/interpret --deployment "$DEPLOYMENT_URL" -- \
-            --request POST --header 'Content-Type: application/json' --max-time 120 \
+            --request POST --header 'Content-Type: application/json' --max-time 180 \
             --data "$QWEN_PAYLOAD" > /tmp/qwen.json
           jq -e '.modelProfile.id == "qwen-plus" and .modelProfile.model == "qwen3.7-plus" and .modelProfile.apiStyle == "messages"' /tmp/qwen.json >/dev/null
           jq -e '.report.sections | type == "array" and length > 0' /tmp/qwen.json >/dev/null
