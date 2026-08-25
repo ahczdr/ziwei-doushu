@@ -9,8 +9,15 @@ import {
   tryAcquireInterpretSlot,
 } from '../security';
 
+function testEnv(values: Record<string, string> = {}): NodeJS.ProcessEnv {
+  return {
+    NODE_ENV: 'test',
+    ...values,
+  };
+}
+
 test('interpret safety defaults are bounded and enabled', () => {
-  const config = interpretSafetyFromEnv({});
+  const config = interpretSafetyFromEnv(testEnv());
   assert.equal(config.enabled, true);
   assert.equal(config.maxInflight, 2);
   assert.equal(config.maxProviderCalls, 2);
@@ -18,12 +25,12 @@ test('interpret safety defaults are bounded and enabled', () => {
 });
 
 test('interpret safety parses explicit production controls', () => {
-  const config = interpretSafetyFromEnv({
+  const config = interpretSafetyFromEnv(testEnv({
     ZIWEI_AI_INTERPRET_ENABLED: 'false',
     ZIWEI_AI_MAX_INFLIGHT: '4',
     ZIWEI_AI_MAX_PROVIDER_CALLS: '1',
     ZIWEI_AI_ALLOWED_ORIGINS: 'https://example.com,https://www.example.com/',
-  });
+  }));
   assert.equal(config.enabled, false);
   assert.equal(config.maxInflight, 4);
   assert.equal(config.maxProviderCalls, 1);
@@ -31,20 +38,20 @@ test('interpret safety parses explicit production controls', () => {
 });
 
 test('interpret safety rejects invalid bounds and origins', () => {
-  assert.throws(() => interpretSafetyFromEnv({ ZIWEI_AI_MAX_INFLIGHT: '0' }), RangeError);
-  assert.throws(() => interpretSafetyFromEnv({ ZIWEI_AI_MAX_PROVIDER_CALLS: '3' }), RangeError);
-  assert.throws(() => interpretSafetyFromEnv({ ZIWEI_AI_ALLOWED_ORIGINS: 'https://example.com/path' }), RangeError);
+  assert.throws(() => interpretSafetyFromEnv(testEnv({ ZIWEI_AI_MAX_INFLIGHT: '0' })), RangeError);
+  assert.throws(() => interpretSafetyFromEnv(testEnv({ ZIWEI_AI_MAX_PROVIDER_CALLS: '3' })), RangeError);
+  assert.throws(() => interpretSafetyFromEnv(testEnv({ ZIWEI_AI_ALLOWED_ORIGINS: 'https://example.com/path' })), RangeError);
 });
 
 test('origin allowlist permits server calls without Origin and exact browser origins', () => {
-  const config = interpretSafetyFromEnv({ ZIWEI_AI_ALLOWED_ORIGINS: 'https://example.com' });
+  const config = interpretSafetyFromEnv(testEnv({ ZIWEI_AI_ALLOWED_ORIGINS: 'https://example.com' }));
   assert.equal(isInterpretOriginAllowed(new Request('https://service.test/api'), config), true);
   assert.equal(isInterpretOriginAllowed(new Request('https://service.test/api', { headers: { origin: 'https://example.com' } }), config), true);
   assert.equal(isInterpretOriginAllowed(new Request('https://service.test/api', { headers: { origin: 'https://evil.example' } }), config), false);
 });
 
 test('inflight slot guard releases capacity exactly once', () => {
-  const config = interpretSafetyFromEnv({ ZIWEI_AI_MAX_INFLIGHT: '1' });
+  const config = interpretSafetyFromEnv(testEnv({ ZIWEI_AI_MAX_INFLIGHT: '1' }));
   const first = tryAcquireInterpretSlot(config);
   assert.ok(first);
   assert.equal(tryAcquireInterpretSlot(config), null);
