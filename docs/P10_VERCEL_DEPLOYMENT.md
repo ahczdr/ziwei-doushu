@@ -1,95 +1,147 @@
-# P10 — Vercel 部署与生产验收
+# P10 — Vercel 生产部署与可切换模型网关
 
 ## 目标
 
-P10 将 P8/P9 的通用部署能力接到 Vercel：首次运行可创建项目、同步服务端 AI Provider 配置、构建并部署，并对生产 URL 执行远程验收。
+P10 将 P8/P9 的通用部署能力接入 Vercel，并完成真实生产验收；同时把 AI Provider 从单一 `/chat/completions` 假设升级为可切换的多协议网关。
 
-确定性排盘架构不变：`iztro -> ChartFacts -> Pattern Engine -> RAG -> AI -> Critic`。
+确定性排盘架构保持不变：
 
-## 当前 Vercel 目标
+```text
+iztro -> ChartFacts -> Pattern Engine -> RAG -> AI -> Critic
+```
+
+AI 不参与命盘事实计算。
+
+## 已验证的 Vercel 目标
 
 - Team: `ahczdr2026-1757`
 - Team ID: `team_qPw2lbnCHwH2czTLcopawsqH`
-- 默认 Project 名：`ziwei-ai-platform`
+- Project: `ziwei-ai-platform`
+- Project ID: `prj_fpI3Wzf8pn6mxIEwOosIhLUCdsAw`
+- Production alias: `https://ziwei-ai-platform.vercel.app`
 - Framework: Next.js
-- Node.js: 22
-- Vercel CLI: pinned to `59.5.0` in deployment workflow
+- Node.js: 22.x
+- Vercel CLI: `59.5.0`
 
 ## GitHub Actions Secrets
 
-部署工作流只读取 Secret，不把值写入源码或日志。
+正式部署工作流只读取 Secret，不把值提交到源码或普通日志。
 
 必需：
 
 - `VERCEL_TOKEN`
-
-若 `sync_ai_env=true`，还需要：
-
 - `ZIWEI_AI_BASE_URL`
 - `ZIWEI_AI_API_KEY`
 - `ZIWEI_AI_MODEL`
 
 可选：
 
+- `ZIWEI_AI_API_STYLE`
 - `ZIWEI_AI_TIMEOUT_MS`
-- `VERCEL_AUTOMATION_BYPASS_SECRET`（仅受 Deployment Protection 保护的远程验收需要）
 
-禁止把上述真实值提交到 `.env.example`、workflow YAML、Issue、PR 评论或普通日志。
+`ZIWEI_AI_API_STYLE` 支持：
 
-## 首次部署
+```text
+auto
+responses
+chat-completions
+messages
+```
+
+推荐默认使用 `auto`。同一网关切换模型通常只需要更新 `ZIWEI_AI_MODEL`。
+
+禁止把真实 Token/API Key 提交到 `.env.example`、workflow YAML、Issue、PR 评论或普通日志。
+
+## 多模型路由
+
+服务端 `SwitchableModelProvider` 支持三种常见协议：
+
+- OpenAI Responses：`/responses`
+- OpenAI Chat Completions：`/chat/completions`
+- Anthropic-style Messages：`/messages`
+
+对已知 OpenCode Go 模型，`auto` 可以根据模型选择对应协议；也可以显式指定 API Style。模型 Provider 对 429 和常见 5xx 做有界重试，避免一次瞬时上游错误立即终止整次解盘。
+
+示例：
+
+```env
+ZIWEI_AI_BASE_URL=https://opencode.ai/zen/go/v1
+ZIWEI_AI_MODEL=gpt-5.6-luna
+ZIWEI_AI_API_STYLE=auto
+```
+
+该配置在生产验收中实际走 `responses` 协议。
+
+## 正式部署
 
 工作流：`.github/workflows/deploy-vercel.yml`
 
 手动触发 `Deploy to Vercel`：
 
-1. `target=preview` 先做预览部署。
-2. 保持 `project_name=ziwei-ai-platform`。
-3. `sync_ai_env=true` 时，工作流从 GitHub Secrets 同步服务端 Provider 配置。
-4. 工作流检查项目；不存在时执行 `vercel project add` 创建。
-5. 执行 `vercel link`、`vercel pull`、`vercel build` 和 `vercel deploy --prebuilt`。
-6. 返回 Deployment URL 后执行 `scripts/remote-smoke.mjs`。
+1. 选择 `preview` 或 `production`。
+2. 默认 Project 为 `ziwei-ai-platform`。
+3. `sync_ai_env=true` 时，从 GitHub Secrets 同步服务端 Provider 配置。
+4. 检查/创建并链接 Vercel Project。
+5. 执行 `vercel pull`、`vercel build`、`vercel deploy --prebuilt`。
+6. 部署完成后通过 Vercel CLI 的认证 `vercel curl` 执行验收，因此即使 Deployment Protection 开启也无需暴露测试 URL。
 
-当 `VERCEL_TOKEN` 首次配置完成时，P10 还提供一个一次性 Preview Bootstrap 工作流：`.github/workflows/bootstrap-vercel-preview.yml`。它只创建/复用 Vercel Project、执行 Preview 部署并跑基础远程 smoke，不同步 AI Provider Secret，也不会部署 Production。该工作流用于验证账号 Token、Project 创建、构建和远程访问链路。
+一次性 Bootstrap workflow 已在完成首轮生产部署后从 v0.1.1 发布分支移除；后续统一使用正式 `Deploy to Vercel` 工作流。
 
-## 生产部署门禁
+## Production 验收门禁
 
-`target=production` 时，部署后的远程 smoke 必须满足：
+Production 部署必须通过：
 
-- `/api/health` HTTP 200，`status=ok`。
-- `/api/ready` HTTP 200；AI Provider 必须 Ready。
-- `/api/ziwei-ai/retrieve` 可检索古籍并返回 hits 数组。
-- `/api/ziwei-ai/interpret` 实际完成一条固定测试命盘的 AI 解读。
-- 解读响应存在非空 `report.sections`。
-- 解读响应存在 Critic 结果。
+- `/api/health`：`status=ok`
+- `/api/ready`：`ready=true` 且 `aiProvider.state=configured`
+- `/api/ziwei-ai/retrieve`：返回古籍 hits 数组
+- `/api/ziwei-ai/interpret`：真实完成固定测试命盘的 AI 解读
+- `report.sections` 非空
+- Critic 对象存在
 
-生产 smoke 会产生一次真实模型调用，应计入模型费用和审计日志。
+Production smoke 会产生真实模型调用，应计入模型费用和审计日志。
+
+## 已完成的真实生产验收
+
+Authenticated Production Bootstrap run：`32805475026`。
+
+验收结果：
+
+```text
+Secrets sync        PASS
+Node 22.x            PASS
+Vercel build         PASS
+Production deploy    PASS
+/api/health          PASS
+/api/ready           PASS
+Classics RAG         PASS
+AI interpretation    PASS
+Provider protocol    responses
+Report sections      4
+Critic               PASS
+Revision required    no
+```
+
+Vercel Runtime Logs 同时确认 `/api/ziwei-ai/interpret` 返回 HTTP 200。
+
+随后 P8、P9、P10 按 stacked 顺序合并，最终 `main` Release Gate #151（`32806347433`）全部通过。
 
 ## 独立远程验收
 
-工作流：`.github/workflows/remote-acceptance.yml`
+工作流：`.github/workflows/remote-acceptance.yml`。
 
-可对任意 HTTPS 部署地址执行：
+该工作流用于 Vercel 以外或需要直接使用 HTTPS URL 的场景。若目标开启 Vercel Deployment Protection，可配置：
 
-- 基础 smoke：`require_ready=false`、`check_interpret=false`。
-- 生产 smoke：`require_ready=true`、`check_interpret=true`。
+- `VERCEL_AUTOMATION_BYPASS_SECRET`
 
-若 Preview/Production 开启 Vercel Deployment Protection，可在 GitHub Secrets 中配置 `VERCEL_AUTOMATION_BYPASS_SECRET`；脚本会通过 `x-vercel-protection-bypass` Header 使用该 Secret。
+`scripts/remote-smoke.mjs` 会发送 `x-vercel-protection-bypass` Header。
 
 ## 回滚
 
-- 不移动现有 `v0.1.0` Tag。
-- 新发布使用新的 SemVer Tag，例如 `v0.1.1`。
-- 若 Vercel 新部署异常，优先在 Vercel 回滚到上一成功 Deployment；代码侧通过 Git revert/新 patch 修复，不改写已发布 Tag。
+- 不移动已发布 Tag。
+- v0.1.1 使用新的 `v0.1.1` Tag。
+- Vercel 部署异常时优先回滚到上一成功 Deployment。
+- 源码通过 Git revert 或新 patch 版本修复，不改写已发布版本历史。
 
-## 完成定义
+## P10 完成状态
 
-P10 只有在以下全部满足后才能视为真正上线完成：
-
-- Vercel Project 已存在。
-- Preview 部署成功。
-- Production 部署成功。
-- 服务端 AI Provider 配置完成。
-- Production `/api/ready` 为 200。
-- Production live interpretation smoke 通过。
-- 线上运行日志无持续 5xx。
-- P8/P9/P10 合并后 main Release Gate 仍为全绿。
+P10 已满足完成定义：Vercel Project、Production 部署、Provider 配置、真实 AI interpretation、Critic、运行日志以及合并后 main Release Gate 均已完成验证。
