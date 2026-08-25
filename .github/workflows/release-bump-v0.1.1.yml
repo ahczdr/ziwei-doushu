@@ -1,0 +1,46 @@
+name: Bump v0.1.1 Metadata
+
+on:
+  push:
+    branches:
+      - release/v0.1.1
+    paths:
+      - '.github/workflows/release-bump-v0.1.1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v0.1.1
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Bump package and lock metadata
+        run: |
+          set -euo pipefail
+          npm version 0.1.1 --no-git-tag-version
+          printf '0.1.1\n' > VERSION
+
+      - name: Commit generated metadata
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json VERSION
+          if git diff --cached --quiet; then
+            echo 'Version metadata already current.'
+            exit 0
+          fi
+          git commit -m 'chore(release): bump version to 0.1.1'
+          git push origin HEAD:release/v0.1.1
