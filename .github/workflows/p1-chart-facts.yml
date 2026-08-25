@@ -26,6 +26,10 @@ on:
       - project/ziwei-ai-p7-platform
       - project/ziwei-ai-p8-deployment
 
+concurrency:
+  group: ziwei-ai-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release-gate:
     runs-on: ubuntu-latest
