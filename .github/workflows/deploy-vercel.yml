@@ -93,10 +93,19 @@ jobs:
           set -euo pipefail
           CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
           ENVIRONMENT="${{ inputs.target }}"
+          PREVIEW_GIT_BRANCH="${GITHUB_REF_NAME:-main}"
           upsert_env() {
             KEY="$1"
             VALUE="$2"
             SENSITIVE="${3:-false}"
+            if [ "$ENVIRONMENT" = "preview" ]; then
+              if [ "$SENSITIVE" = "true" ]; then
+                printf '%s' "$VALUE" | $CLI env add "$KEY" preview "$PREVIEW_GIT_BRANCH" --force --sensitive --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
+              else
+                printf '%s' "$VALUE" | $CLI env add "$KEY" preview "$PREVIEW_GIT_BRANCH" --force --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
+              fi
+              return
+            fi
             $CLI env rm "$KEY" "$ENVIRONMENT" --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
             if [ "$SENSITIVE" = "true" ]; then
               printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --sensitive --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
@@ -104,8 +113,18 @@ jobs:
               printf '%s' "$VALUE" | $CLI env add "$KEY" "$ENVIRONMENT" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
             fi
           }
-          remove_env() {
-            $CLI env rm "$1" "$ENVIRONMENT" --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+          clear_env() {
+            KEY="$1"
+            SENSITIVE="${2:-false}"
+            if [ "$ENVIRONMENT" = "preview" ]; then
+              if [ "$SENSITIVE" = "true" ]; then
+                printf '' | $CLI env add "$KEY" preview "$PREVIEW_GIT_BRANCH" --force --sensitive --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
+              else
+                printf '' | $CLI env add "$KEY" preview "$PREVIEW_GIT_BRANCH" --force --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null
+              fi
+            else
+              $CLI env rm "$KEY" "$ENVIRONMENT" --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            fi
           }
           upsert_env ZIWEI_AI_BASE_URL "$ZIWEI_AI_BASE_URL"
           upsert_env ZIWEI_AI_API_KEY "$ZIWEI_AI_API_KEY" true
@@ -114,24 +133,28 @@ jobs:
           if [ -n "${ZIWEI_AI_TIMEOUT_MS:-}" ]; then
             upsert_env ZIWEI_AI_TIMEOUT_MS "$ZIWEI_AI_TIMEOUT_MS"
           else
-            remove_env ZIWEI_AI_TIMEOUT_MS
+            clear_env ZIWEI_AI_TIMEOUT_MS
           fi
           if [ -n "${ZIWEI_AI_PROFILES_JSON:-}" ]; then
             upsert_env ZIWEI_AI_PROFILES_JSON "$ZIWEI_AI_PROFILES_JSON" true
           else
-            remove_env ZIWEI_AI_PROFILES_JSON
+            clear_env ZIWEI_AI_PROFILES_JSON true
           fi
           if [ -n "${ZIWEI_AI_DEFAULT_PROFILE:-}" ]; then
             upsert_env ZIWEI_AI_DEFAULT_PROFILE "$ZIWEI_AI_DEFAULT_PROFILE"
           else
-            remove_env ZIWEI_AI_DEFAULT_PROFILE
+            clear_env ZIWEI_AI_DEFAULT_PROFILE
           fi
 
       - name: Pull Vercel environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment="${{ inputs.target }}" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          if [ "${{ inputs.target }}" = "preview" ]; then
+            npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=preview --git-branch="${GITHUB_REF_NAME:-main}" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          else
+            npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment="${{ inputs.target }}" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          fi
 
       - name: Build Vercel output
         env:
@@ -168,12 +191,12 @@ jobs:
           jq -e '.status == "ok"' /tmp/health.json >/dev/null
 
           $CLI curl /api/ready --deployment "$DEPLOYMENT_URL" > /tmp/ready.json
-          if [ "${{ inputs.target }}" = "production" ]; then
+          if [ "${{ inputs.sync_ai_env }}" = "true" ]; then
             jq -e '.ready == true and .aiProvider.state == "configured"' /tmp/ready.json >/dev/null
           fi
 
           $CLI curl /api/ziwei-ai/models --deployment "$DEPLOYMENT_URL" > /tmp/models.json
-          if [ "${{ inputs.target }}" = "production" ]; then
+          if [ "${{ inputs.sync_ai_env }}" = "true" ]; then
             jq -e '.configured == true and (.profiles | type == "array" and length > 0)' /tmp/models.json >/dev/null
           fi
 
