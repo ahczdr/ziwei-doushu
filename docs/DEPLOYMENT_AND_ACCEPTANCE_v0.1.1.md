@@ -1,39 +1,58 @@
-# P8 Deployment & Acceptance Runbook — target v0.1.1
+# Deployment & Acceptance Runbook — v0.1.1
 
 ## Goal
 
-Move the audited v0.1.0 codebase from release-ready to deployable and observable. P8 does not change chart calculation semantics; it adds deployment packaging, runtime status checks and production smoke verification.
+v0.1.1 moves the audited v0.1.0 application from release-ready to a verified production deployment with liveness/readiness probes, Docker packaging, Vercel automation, remote acceptance and a switchable AI model gateway.
+
+Deterministic chart semantics are unchanged.
 
 ## Runtime contract
 
-- Node.js 22+
+- Node.js 22.x
 - deterministic chart engine: `iztro 2.6.0`
 - standard chart renderer: `react-iztro 1.5.0`
-- install with `npm ci --ignore-scripts`
-- build with `npm run build`
-- start with `npm run start`
+- install: `npm ci --ignore-scripts`
+- build: `npm run build`
+- start: `npm run start`
 
-## Required server-side AI configuration
+## Server-side AI configuration
+
+Example:
 
 ```env
-ZIWEI_AI_BASE_URL=https://api.deepseek.com/v1
+ZIWEI_AI_BASE_URL=https://opencode.ai/zen/go/v1
 ZIWEI_AI_API_KEY=replace-me
-ZIWEI_AI_MODEL=deepseek-chat
+ZIWEI_AI_MODEL=gpt-5.6-luna
+ZIWEI_AI_API_STYLE=auto
 ZIWEI_AI_TIMEOUT_MS=60000
 NEXT_PUBLIC_SITE_URL=https://your-domain.example
 ```
 
-Never expose `ZIWEI_AI_API_KEY` through a `NEXT_PUBLIC_*` variable.
+`ZIWEI_AI_API_STYLE` accepts `auto`, `responses`, `chat-completions` or `messages`. Never expose API keys through `NEXT_PUBLIC_*` variables.
 
-## Deployment option A — Git repository / managed Next.js host
+## Deployment option A — Vercel
 
-1. Import `ahczdr/ziwei-doushu` into the hosting platform.
-2. Use Node.js 22.
-3. Build command: `npm run build`.
-4. Install command: `npm ci --ignore-scripts`.
-5. Configure the five environment variables above.
-6. Deploy from an audited branch/commit only.
-7. Verify `/api/health` and `/api/ready` after deployment.
+Formal workflow: `.github/workflows/deploy-vercel.yml`.
+
+Required GitHub Repository Secrets:
+
+- `VERCEL_TOKEN`
+- `ZIWEI_AI_BASE_URL`
+- `ZIWEI_AI_API_KEY`
+- `ZIWEI_AI_MODEL`
+
+Optional:
+
+- `ZIWEI_AI_API_STYLE`
+- `ZIWEI_AI_TIMEOUT_MS`
+
+The workflow can create/link the project, synchronize server-side environment variables, build, deploy, and run authenticated acceptance through Vercel Deployment Protection.
+
+Verified project:
+
+- Project: `ziwei-ai-platform`
+- Production alias: `https://ziwei-ai-platform.vercel.app`
+- Runtime: Node 22.x
 
 ## Deployment option B — Docker
 
@@ -47,107 +66,118 @@ Run:
 
 ```bash
 docker run --rm -p 3000:3000 \
-  -e ZIWEI_AI_BASE_URL=https://api.deepseek.com/v1 \
+  -e ZIWEI_AI_BASE_URL=https://your-provider.example/v1 \
   -e ZIWEI_AI_API_KEY=replace-me \
-  -e ZIWEI_AI_MODEL=deepseek-chat \
+  -e ZIWEI_AI_MODEL=your-model \
+  -e ZIWEI_AI_API_STYLE=auto \
   -e ZIWEI_AI_TIMEOUT_MS=60000 \
-  -e NEXT_PUBLIC_SITE_URL=https://your-domain.example \
   ziwei-ai-platform:0.1.1
 ```
 
-The runtime container runs as a non-root user.
+Or use:
+
+```bash
+docker compose -f docker-compose.production.yml up -d
+```
+
+The runtime container runs as a non-root user and has a `/api/health` Docker HEALTHCHECK.
 
 ## Health and readiness
 
 ### `GET /api/health`
 
-Purpose: liveness and base runtime monitoring. It does not call an external model.
+Liveness endpoint. It does not call an external model and does not expose provider URL, model name or API key.
 
-Expected healthy response when the application is alive:
-
-```json
-{
-  "service": "ziwei-ai-platform",
-  "status": "ok",
-  "nodeEnv": "production",
-  "aiProvider": {
-    "state": "configured",
-    "timeoutMs": 60000
-  }
-}
-```
-
-A fully missing provider is reported as `state=missing` while the base app remains healthy. Partial/invalid provider configuration reports `status=degraded` and HTTP 503.
+A fully missing provider may still leave the base application healthy; partial/invalid provider configuration is reported as degraded.
 
 ### `GET /api/ready`
 
-Purpose: full Ziwei AI interpretation readiness. Returns HTTP 200 only when the AI provider configuration is complete and valid. Missing/invalid provider configuration returns HTTP 503.
+AI interpretation readiness endpoint. HTTP 200 means server-side provider configuration is complete and valid. Missing/invalid configuration returns HTTP 503.
 
-Neither endpoint returns API keys, provider URLs or model identifiers.
+## Model gateway
 
-## Automated deployment gates
+The runtime model gateway supports:
+
+```text
+responses
+chat-completions
+messages
+```
+
+`auto` uses known gateway/model routing and otherwise falls back to the OpenAI-compatible chat style. Explicit API style is available for gateways whose model list changes independently of this repository.
+
+Retryable 429/5xx responses receive bounded retries; non-retryable provider errors fail closed.
+
+## Release Gate
 
 `Ziwei AI Release Gate` must pass:
 
 1. locked dependency install;
 2. TypeScript strict check;
-3. P1–P8 regression tests;
+3. P1–P10 regression tests;
 4. Next.js production build;
 5. real `next start` HTTP smoke test;
 6. Docker image build;
-7. critical npm dependency audit.
+7. production Compose validation;
+8. Vercel configuration validation;
+9. critical npm dependency audit.
 
-The production smoke test verifies:
+The local production smoke verifies liveness, readiness fail-closed behavior, classics retrieval and model-unconfigured interpretation behavior.
 
-- `/api/health` returns a valid healthy payload;
-- `/api/ready` correctly rejects a missing AI provider;
-- `/api/ziwei-ai/retrieve` works without a model credential;
-- `/api/ziwei-ai/interpret` fails closed with HTTP 503 when no server provider is configured.
+## Production acceptance
 
-## Online acceptance checklist
+A real Production deployment must additionally verify:
 
 ### A. Chart facts
 
-- [ ] solar input produces a 12-palace chart;
-- [ ] lunar input produces a valid equivalent chart;
-- [ ] leap-month input works;
-- [ ] early Zi and late Zi remain distinct;
-- [ ] true-solar correction can cross a civil-date boundary without losing the corrected date;
-- [ ] standard and enhanced chart display the same effective input.
+- solar/lunar inputs produce valid 12-palace charts;
+- leap-month paths remain valid;
+- early Zi and late Zi remain distinct;
+- true-solar correction may cross a civil-date boundary without losing the corrected date;
+- standard and enhanced chart receive the same effective input.
 
 ### B. Pattern evidence
 
-- [ ] pattern panel loads without browser errors;
-- [ ] matched star/palace Fact IDs resolve to actual ChartFacts;
-- [ ] warning patterns are displayed as traditional-cultural rules, not deterministic real-world predictions.
+- matched star/palace Fact IDs resolve to actual ChartFacts;
+- warning patterns remain traditional-cultural rules rather than deterministic real-world predictions.
 
 ### C. Classics retrieval
 
-- [ ] retrieval API returns citation IDs;
-- [ ] each result contains book/chapter/paragraph provenance;
-- [ ] empty and oversized requests are rejected correctly.
+- retrieval API returns citation IDs and book/chapter/paragraph provenance;
+- invalid and oversized requests are rejected.
 
 ### D. AI interpretation
 
-- [ ] `/api/ready` is 200 after production model variables are configured;
-- [ ] overview interpretation returns structured JSON-backed UI;
-- [ ] career / wealth / relationship / health-cultural topic modes work;
-- [ ] every factual claim has fact IDs and/or citation IDs;
-- [ ] Critic score and revision state are visible;
-- [ ] health-cultural output contains no diagnosis/treatment instruction;
-- [ ] API key never appears in browser source, network response or health endpoint.
+- `/api/ready` returns 200 with production Provider configured;
+- interpretation returns non-empty structured sections;
+- claims retain Fact IDs/citation IDs;
+- Critic result is present;
+- health-cultural output does not become diagnosis/treatment instruction;
+- API keys never appear in client responses.
 
 ### E. Production operations
 
-- [ ] HTTPS enabled;
-- [ ] custom domain configured;
-- [ ] access logs available;
-- [ ] `/api/health` monitored;
-- [ ] `/api/ready` monitored separately if AI availability is business-critical;
-- [ ] rate limiting/authentication added before exposing a billable model endpoint publicly;
-- [ ] provider billing/usage alerts configured;
-- [ ] rollback target is the immutable `v0.1.0` tag.
+- HTTPS and runtime logs available;
+- `/api/health` monitored;
+- `/api/ready` monitored separately when model availability matters;
+- access control/rate limiting/budget controls applied before broad exposure of a billable endpoint;
+- rollback target remains an immutable released deployment/Tag.
 
-## v0.1.1 release rule
+## Verified acceptance evidence
 
-Do not move the existing `v0.1.0` tag. Deployment fixes are accumulated on `project/ziwei-ai-p8-deployment`, reviewed through a PR to `main`, then released as a new SemVer patch `v0.1.1` after online acceptance.
+Production bootstrap run `32805475026` passed:
+
+- health;
+- readiness;
+- classics RAG;
+- a real model interpretation routed through `responses`;
+- four report sections;
+- Critic pass with no revision required.
+
+Vercel Runtime Logs confirmed `/api/ziwei-ai/interpret` HTTP 200.
+
+After P8/P9/P10 were merged in order, final `main` Release Gate #151 (`32806347433`) also passed in full.
+
+## Release rule
+
+Do not move `v0.1.0`. v0.1.1 is published as a new immutable Tag after the release branch passes its own gate. Subsequent fixes use a new patch version rather than rewriting released history.
