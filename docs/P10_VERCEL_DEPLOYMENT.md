@@ -49,6 +49,8 @@ P10 将 P8/P9 的通用部署能力接到 Vercel：首次运行可创建项目�
 5. 执行 `vercel link`、`vercel pull`、`vercel build` 和 `vercel deploy --prebuilt`。
 6. 返回 Deployment URL 后执行 `scripts/remote-smoke.mjs`。
 
+当 `VERCEL_TOKEN` 首次配置完成时，P10 还提供一个一次性 Preview Bootstrap 工作流：`.github/workflows/bootstrap-vercel-preview.yml`。它只创建/复用 Vercel Project、执行 Preview 部署并跑基础远程 smoke，不同步 AI Provider Secret，也不会部署 Production。该工作流用于验证账号 Token、Project 创建、构建和远程访问链路。
+
 ## 生产部署门禁
 
 `target=production` 时，部署后的远程 smoke 必须满足：
