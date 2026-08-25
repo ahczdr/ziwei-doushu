@@ -1,0 +1,41 @@
+name: P11 Connect Vercel Git
+
+on:
+  push:
+    branches:
+      - ops/p11-preview-dual-model-v2
+    paths:
+      - '.github/workflows/p11-connect-vercel-git.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Link Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          npx --yes vercel@59.5.0 link --yes --project ziwei-ai-platform --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
+
+      - name: Connect GitHub repository
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes vercel@59.5.0 git connect --yes --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
