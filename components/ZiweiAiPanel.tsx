@@ -1,8 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ChartInput } from '@/lib/ziwei-ai/chart-types';
 import type { InterpretationReport, InterpretationTopic } from '@/lib/ziwei-ai/ai-agent';
+
+interface ModelProfile {
+  id: string;
+  label: string;
+  model: string;
+  apiStyle: 'responses' | 'chat-completions' | 'messages';
+  isDefault: boolean;
+}
+
+interface ModelsApiResult {
+  configured: boolean;
+  defaultProfileId: string | null;
+  profiles: ModelProfile[];
+}
 
 interface ApiResult {
   report: InterpretationReport;
@@ -15,6 +29,7 @@ interface ApiResult {
   };
   revised: boolean;
   providerId: string;
+  modelProfile?: ModelProfile;
 }
 
 const TOPICS: Array<{ id: InterpretationTopic; label: string }> = [
@@ -31,6 +46,31 @@ export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<ApiResult | null>(null);
+  const [profiles, setProfiles] = useState<ModelProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const loadProfiles = async () => {
+      try {
+        const response = await fetch('/api/ziwei-ai/models', { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = await response.json() as ModelsApiResult;
+        if (!active || !payload.configured || !Array.isArray(payload.profiles)) return;
+        setProfiles(payload.profiles);
+        const fallback = payload.profiles.find((profile) => profile.isDefault)?.id || payload.profiles[0]?.id || '';
+        setSelectedProfileId(payload.defaultProfileId || fallback);
+      } catch {
+        // Model discovery is optional for backward-compatible single-provider deployments.
+      }
+    };
+    void loadProfiles();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId) || null;
 
   const submit = async () => {
     setLoading(true);
@@ -39,7 +79,12 @@ export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
       const response = await fetch('/api/ziwei-ai/interpret', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input, topic, question: question.trim() || undefined }),
+        body: JSON.stringify({
+          input,
+          topic,
+          question: question.trim() || undefined,
+          modelProfileId: selectedProfileId || undefined,
+        }),
       });
       const payload = await response.json() as ApiResult & { error?: string; message?: string };
       if (!response.ok) throw new Error(payload.message || payload.error || `HTTP ${response.status}`);
@@ -64,6 +109,42 @@ export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
           </span>
         )}
       </div>
+
+      {profiles.length > 0 && (
+        <div className="mt-4 rounded-xl border p-3" style={{ borderColor: 'var(--t-border)', background: 'rgba(127,127,127,0.025)' }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-[10px] tracking-[0.18em]" style={{ color: 'var(--t-faint)' }}>MODEL PROFILE</div>
+              <div className="mt-1 text-xs" style={{ color: 'var(--t-text)' }}>
+                {selectedProfile ? `${selectedProfile.label} · ${selectedProfile.apiStyle}` : '选择服务端模型'}
+              </div>
+            </div>
+            {profiles.length > 1 ? (
+              <select
+                value={selectedProfileId}
+                onChange={(event) => setSelectedProfileId(event.target.value)}
+                disabled={loading}
+                className="max-w-full rounded-lg border px-3 py-2 text-xs outline-none disabled:opacity-50"
+                style={{ borderColor: 'var(--t-border)', background: 'var(--t-bg)', color: 'var(--t-text)' }}
+                aria-label="选择 AI 模型"
+              >
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.label} · {profile.model}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="rounded-full border px-2.5 py-1 text-[10px]" style={{ borderColor: 'var(--t-border)', color: 'var(--t-faint)' }}>
+                {profiles[0]?.model}
+              </span>
+            )}
+          </div>
+          <p className="mt-2 text-[10px] leading-5" style={{ color: 'var(--t-faint)' }}>
+            页面只接收模型名称与协议元数据；API Key 和 Provider 地址始终保留在服务端。
+          </p>
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {TOPICS.map((item) => (
@@ -155,6 +236,7 @@ export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
 
           <div className="text-[10px] leading-5" style={{ color: 'var(--t-faint)' }}>
             {result.report.disclaimer}<br />
+            {result.modelProfile ? `Model: ${result.modelProfile.label} · ${result.modelProfile.apiStyle} · ` : ''}
             Provider: {result.providerId} · grounded {(result.critic.groundedClaimRatio * 100).toFixed(0)}% · citation precision {(result.critic.citationReferencePrecision * 100).toFixed(0)}%{result.revised ? ' · 已经 Critic 自动修订一次' : ''}
           </div>
         </div>
