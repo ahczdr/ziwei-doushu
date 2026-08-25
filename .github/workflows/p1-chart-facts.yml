@@ -29,7 +29,7 @@ on:
 jobs:
   release-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,6 +54,9 @@ jobs:
 
       - name: Production HTTP smoke test
         run: npm run smoke:production
+
+      - name: Production Docker image build
+        run: docker build --tag ziwei-ai-platform:ci .
 
       - name: Critical dependency audit
         run: npm audit --audit-level=critical
