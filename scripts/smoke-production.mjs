@@ -20,12 +20,19 @@ server.stderr.on('data', (chunk) => { output += chunk.toString(); });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function request(path, options = {}, timeoutMs = 10_000) {
+  return fetch(`${baseUrl}${path}`, {
+    ...options,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
 async function waitForHealth() {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     if (server.exitCode !== null) throw new Error(`production server exited early (${server.exitCode})\n${output}`);
     try {
-      const response = await fetch(`${baseUrl}/api/health`, { cache: 'no-store' });
+      const response = await request('/api/health', { cache: 'no-store' }, 2_000);
       if (response.ok) return response.json();
     } catch {
       // Server may still be booting.
@@ -53,19 +60,19 @@ try {
     throw new Error(`unexpected health payload: ${JSON.stringify(health)}`);
   }
 
-  const readiness = await assertJson(await fetch(`${baseUrl}/api/ready`, { cache: 'no-store' }), 503, 'AI readiness');
+  const readiness = await assertJson(await request('/api/ready', { cache: 'no-store' }), 503, 'AI readiness');
   if (readiness.ready !== false || readiness.aiProvider?.state !== 'missing') {
     throw new Error(`unexpected readiness payload: ${JSON.stringify(readiness)}`);
   }
 
-  const retrieval = await assertJson(await fetch(`${baseUrl}/api/ziwei-ai/retrieve`, {
+  const retrieval = await assertJson(await request('/api/ziwei-ai/retrieve', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ query: '紫微 天府', limit: 2 }),
   }), 200, 'classics retrieval');
   if (!Array.isArray(retrieval.hits)) throw new Error('classics retrieval did not return hits array');
 
-  const interpret = await assertJson(await fetch(`${baseUrl}/api/ziwei-ai/interpret`, {
+  const interpret = await assertJson(await request('/api/ziwei-ai/interpret', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
