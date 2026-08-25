@@ -1,0 +1,68 @@
+name: Hotfix Rate Limit Production
+
+on:
+  push:
+    branches:
+      - ops/p12-preview-acceptance
+    paths:
+      - .github/workflows/hotfix-rate-limit-production.yml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout audited main
+        uses: actions/checkout@v4
+        with:
+          ref: 2a82b0e7ecf1c2dd33b448cfa2558bf0d6b4755e
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Link Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          npx --yes vercel@59.5.0 link --yes --project ziwei-ai-platform --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
+      - name: Pull Production environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@59.5.0 pull --yes --environment=production --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
+      - name: Build Production output
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@59.5.0 build --prod --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN"
+      - name: Deploy audited hotfix to Production
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL=$(npx --yes vercel@59.5.0 deploy --prebuilt --prod --scope team_qPw2lbnCHwH2czTLcopawsqH --token "$VERCEL_TOKEN")
+          echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Production deployed: $URL"
+      - name: Validate public Production and real interpretation
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          PUBLIC='https://ziwei-ai-platform.vercel.app'
+          curl --fail-with-body --silent --show-error "$PUBLIC/api/health" > /tmp/health.json
+          jq -e '.status == "ok" and .aiProvider.state == "configured" and .interpretSafety.enabled == true' /tmp/health.json >/dev/null
+          curl --fail-with-body --silent --show-error "$PUBLIC/api/ready" > /tmp/ready.json
+          jq -e '.ready == true and .aiProvider.profileCount >= 2' /tmp/ready.json >/dev/null
+          code=$(curl --silent --show-error --output /tmp/interpret.json --dump-header /tmp/interpret.headers --write-out '%{http_code}' --max-time 120 \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --header 'Origin: https://ziwei-ai-platform.vercel.app' \
+            --data '{"input":{"calendarType":"solar","date":"2000-8-16","hourIndex":2,"gender":"female"},"topic":"overview","question":"请仅依据命盘事实、格局证据与检索到的古籍证据做一段简要综合解读。"}' \
+            "$PUBLIC/api/ziwei-ai/interpret")
+          test "$code" = '200'
+          jq -e '.report.sections | type == "array" and length > 0' /tmp/interpret.json >/dev/null
+          jq -e '.critic.passed == true' /tmp/interpret.json >/dev/null
+          grep -qi '^x-request-id:' /tmp/interpret.headers
+          echo 'Hotfix production acceptance passed.'
