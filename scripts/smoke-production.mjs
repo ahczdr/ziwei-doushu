@@ -2,7 +2,6 @@ import { spawn } from 'node:child_process';
 
 const port = Number(process.env.ZIWEI_AI_SMOKE_PORT || 3100);
 const baseUrl = `http://127.0.0.1:${port}`;
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const childEnv = { ...process.env, NODE_ENV: 'production' };
 delete childEnv.ZIWEI_AI_BASE_URL;
@@ -10,7 +9,7 @@ delete childEnv.ZIWEI_AI_API_KEY;
 delete childEnv.ZIWEI_AI_MODEL;
 delete childEnv.ZIWEI_AI_TIMEOUT_MS;
 
-const server = spawn(npmCommand, ['run', 'start', '--', '-p', String(port)], {
+const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port)], {
   env: childEnv,
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -91,10 +90,10 @@ try {
     providerGuard: interpret.error,
   });
 } finally {
-  server.kill('SIGTERM');
+  if (server.exitCode === null) server.kill('SIGTERM');
   await Promise.race([
     new Promise((resolve) => server.once('exit', resolve)),
-    sleep(3_000),
+    sleep(2_000),
   ]);
   if (server.exitCode === null) server.kill('SIGKILL');
 }
