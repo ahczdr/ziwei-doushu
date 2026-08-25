@@ -110,3 +110,16 @@ P12 第一版不宣称提供跨云实例的数据库级日配额。全局入口�
 6. Vercel Firewall 中生产规则已发布，而不是仅保存为 draft；
 7. 生产公开域名正常解盘；
 8. Runtime Logs 中只出现安全元数据，不出现用户问题/出生信息。
+
+## 2026-08-25 在线验收证据
+
+- PR Release Gate `#187`（run `32837620042`）：P1–P12、TypeScript、Next build、HTTP smoke、Docker、Compose、Vercel config、model profiles、critical audit 全部通过。
+- Preview acceptance run `32837901457`：Preview 构建、部署、health、ready、models、RAG、真实 AI 解读与 Critic 全部通过。
+- Preview deployment：`ziwei-ai-platform-bvu8900gv-ahczdr2026-1757.vercel.app`。
+- Vercel Firewall：`Ziwei AI Interpret Rate Limit` 已发布为 live configuration；条件为 `POST /api/ziwei-ai/interpret`，按 IP `3 requests / 60s`，`fixed_window`，超限 `rate_limit`。
+- Firewall live verification run `32838316433`：同一来源前三个无效请求进入应用并返回 400，第 4 个请求在边缘层返回 429；测试请求为空对象，未触发 Provider。
+- Production deployment ID：`dpl_6YjtWqt4aSJYcnrXJYDdp49K2wQN`，commit `497d9a669d9d77a8888e50fbb27bcfec4bfe2cdd`，状态 `READY`，公共别名 `ziwei-ai-platform.vercel.app`。
+- Production Runtime Logs：恶意浏览器 Origin 请求返回 403；真实 AI 解读返回 200，`providerCalls=1`、`revised=false`、`criticPassed=true`。
+- Public-edge header verification run `32843252935`：无模型调用的无效请求返回 400，并实测客户端响应含 `Cache-Control: no-store` 和 `X-Request-Id`。
+
+结论：P12 两层费用保护、生产部署、真实 AI 链路、Critic、Origin 约束、边缘限流、请求追踪与 no-store 均已在线验证。
