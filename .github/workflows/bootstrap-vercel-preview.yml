@@ -6,6 +6,8 @@ on:
       - project/ziwei-ai-p10-vercel-deployment
     paths:
       - '.github/workflows/bootstrap-vercel-preview.yml'
+      - 'lib/ziwei-ai/ai-agent/**'
+      - 'app/api/ziwei-ai/interpret/route.ts'
 
 permissions:
   contents: read
@@ -94,6 +96,7 @@ jobs:
           ZIWEI_AI_BASE_URL: ${{ secrets.ZIWEI_AI_BASE_URL }}
           ZIWEI_AI_API_KEY: ${{ secrets.ZIWEI_AI_API_KEY }}
           ZIWEI_AI_MODEL: ${{ secrets.ZIWEI_AI_MODEL }}
+          ZIWEI_AI_API_STYLE: ${{ secrets.ZIWEI_AI_API_STYLE }}
           ZIWEI_AI_TIMEOUT_MS: ${{ secrets.ZIWEI_AI_TIMEOUT_MS }}
           VERCEL_ORG_ID: ${{ env.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ steps.project.outputs.project_id }}
@@ -114,6 +117,7 @@ jobs:
           upsert_env ZIWEI_AI_BASE_URL "$ZIWEI_AI_BASE_URL"
           upsert_env ZIWEI_AI_API_KEY "$ZIWEI_AI_API_KEY" true
           upsert_env ZIWEI_AI_MODEL "$ZIWEI_AI_MODEL"
+          upsert_env ZIWEI_AI_API_STYLE "${ZIWEI_AI_API_STYLE:-auto}"
           if [ -n "${ZIWEI_AI_TIMEOUT_MS:-}" ]; then
             upsert_env ZIWEI_AI_TIMEOUT_MS "$ZIWEI_AI_TIMEOUT_MS"
           fi
@@ -181,4 +185,5 @@ jobs:
           echo '- Project ID: `${{ steps.project.outputs.project_id }}`' >> "$GITHUB_STEP_SUMMARY"
           echo '- Runtime: `Node 22.x`' >> "$GITHUB_STEP_SUMMARY"
           echo '- URL: ${{ steps.deploy.outputs.deployment_url }}' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Model routing: `auto / responses / chat-completions / messages`' >> "$GITHUB_STEP_SUMMARY"
           echo '- Protected acceptance: `health + ready + RAG + real AI interpretation + Critic`' >> "$GITHUB_STEP_SUMMARY"
