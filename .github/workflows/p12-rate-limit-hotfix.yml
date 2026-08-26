@@ -1,0 +1,102 @@
+name: P12 Rate Limit Hotfix
+
+on:
+  push:
+    branches:
+      - ops/p12-rate-limit-hotfix
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_CLI_VERSION: 59.5.0
+  VERCEL_TEAM_ID: team_qPw2lbnCHwH2czTLcopawsqH
+  VERCEL_PROJECT_NAME: ziwei-ai-platform
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate Vercel token
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: test -n "$VERCEL_TOKEN"
+
+      - name: Link Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} link --yes --project "$VERCEL_PROJECT_NAME" --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Replace live interpret rate limit with 6 per minute
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          CLI="npx --yes vercel@${VERCEL_CLI_VERSION}"
+          cleanup() {
+            echo 'Firewall hotfix failed; discarding unpublished draft changes.'
+            $CLI firewall discard --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN" || true
+          }
+          trap cleanup ERR
+
+          $CLI firewall rules remove "Ziwei AI Interpret Rate Limit" --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          $CLI firewall rules add "Ziwei AI Interpret Rate Limit" \
+            --condition '{"type":"path","op":"eq","value":"/api/ziwei-ai/interpret"}' \
+            --condition '{"type":"method","op":"eq","value":"POST"}' \
+            --action rate_limit \
+            --rate-limit-window 60 \
+            --rate-limit-requests 6 \
+            --rate-limit-keys ip \
+            --rate-limit-algo fixed_window \
+            --rate-limit-action rate_limit \
+            --description 'P12 cost guard: max 6 AI interpretations per 60s per IP.' \
+            --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          $CLI firewall publish --yes --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+          trap - ERR
+          $CLI firewall rules list --expand --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Pull Production environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=production --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Build latest main for Production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} build --prod --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN"
+
+      - name: Deploy latest main to Production
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL=$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prebuilt --prod --scope "$VERCEL_TEAM_ID" --token "$VERCEL_TOKEN")
+          echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Production deployed: $URL"
+
+      - name: Validate public Production and real interpretation
+        run: |
+          set -euo pipefail
+          BASE='https://ziwei-ai-platform.vercel.app'
+          curl --fail-with-body --silent --show-error "$BASE/api/health" > /tmp/health.json
+          jq -e '.status == "ok" and .interpretSafety.enabled == true and .aiProvider.state == "configured"' /tmp/health.json >/dev/null
+
+          code=$(curl --silent --show-error --output /tmp/interpret.json --write-out '%{http_code}' \
+            --request POST --header 'Content-Type: application/json' --max-time 120 \
+            --data '{"input":{"calendarType":"solar","date":"2000-8-16","hourIndex":2,"gender":"female"},"topic":"overview","question":"请仅依据命盘事实与检索证据做简要综合解读。"}' \
+            "$BASE/api/ziwei-ai/interpret")
+          test "$code" = '200'
+          jq -e '.report.sections | type == "array" and length > 0' /tmp/interpret.json >/dev/null
+          jq -e '.critic.passed == true' /tmp/interpret.json >/dev/null
+          echo 'Production real interpretation passed.'
