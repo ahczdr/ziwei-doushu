@@ -18,7 +18,7 @@
     "test:p4": "tsx --test lib/ziwei-ai/rag/__tests__/*.test.ts",
     "test:p5": "tsx --test lib/ziwei-ai/ai-agent/__tests__/agent.test.ts lib/ziwei-ai/ai-agent/__tests__/runtime-provider.test.ts",
     "test:p6": "tsx --test lib/ziwei-ai/critic/__tests__/*.test.ts",
-    "test:p7": "tsx --test lib/ziwei-ai/platform/__tests__/platform.test.ts",
+    "test:p7": "tsx --test lib/ziwei-ai/platform/__tests__/platform.test.ts lib/ziwei-ai/platform/__tests__/insight-panel-contract.test.ts",
     "test:p8": "tsx --test lib/ziwei-ai/platform/__tests__/runtime.test.ts",
     "test:p10": "node --check scripts/remote-smoke.mjs && node -e \"const c=JSON.parse(require('fs').readFileSync('vercel.json','utf8')); if(c.framework!=='nextjs') process.exit(1)\"",
     "test:p11": "tsx --test lib/ziwei-ai/ai-agent/__tests__/model-registry.test.ts",

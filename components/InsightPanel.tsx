@@ -1,6 +1,8 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { InterpretationReport, InterpretationTopic } from '@/lib/ziwei-ai/ai-agent';
+import { birthInfoToChartInput } from '@/lib/ziwei-ai/ui-chart';
 import type { ZiweiChart, Palace } from '@/lib/ziwei/types';
 import type { TimeView } from './TimeNav';
 
@@ -30,6 +32,21 @@ const TOPICS = [
   { key: 'health',      label: '健康' },
   { key: 'personality', label: '性格' },
 ] as const;
+
+const API_TOPICS: Record<string, InterpretationTopic> = {
+  overview: 'overview',
+  love: 'relationship',
+  career: 'career',
+  wealth: 'wealth',
+  health: 'health-cultural',
+  personality: 'overview',
+};
+
+interface InterpretApiResponse {
+  report?: InterpretationReport;
+  error?: string;
+  message?: string;
+}
 
 const TOPIC_PROMPTS: Record<string, string> = {
   overview: `请生成命格总览，按以下结构输出：
@@ -144,6 +161,28 @@ const PALACE_ROLES: Record<string, string> = {
   '父母宫': '父母关系、文书契约',
 };
 
+function apiErrorMessage(status: number, payload: InterpretApiResponse | null) {
+  if (payload?.message) return payload.message;
+  if (status === 429) return '请求过于频繁，请等待约 1 分钟后重试。';
+  if (status === 403) return '当前页面来源未获授权，请从正式站点进入后重试。';
+  if (status === 503) return 'AI 服务暂时不可用或繁忙，请稍后重试。';
+  if (status === 502) return '上游模型响应失败，请稍后重试或切换其他模型。';
+  if (status === 413) return '本次问题内容过长，请精简后重试。';
+  return payload?.error || `AI 解读请求失败（HTTP ${status}）`;
+}
+
+function reportAsMarkdown(report: InterpretationReport) {
+  return [
+    report.summary,
+    ...report.sections.flatMap((section) => [
+      `**【${section.title}】**`,
+      section.content,
+    ]),
+    '**【说明】**',
+    report.disclaimer,
+  ].filter(Boolean).join('\n\n');
+}
+
 /** Render AI markdown: **【Title】** → gold header, **bold** → strong */
 function AiContent({ text, streaming }: { text: string; streaming?: boolean }) {
   const lines = text.split('\n');
@@ -187,15 +226,12 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTopic, setActiveTopic] = useState<string>('overview');
-  const messagesRef = useRef<Message[]>([]); // always-current copy for closures
   const loadingRef = useRef(false);
   const autoLoaded = useRef(false);
   const lastPalaceBranch = useRef<number | undefined>(undefined);
   const lastSiHuaKey = useRef<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Keep refs in sync
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { loadingRef.current = loading; }, [loading]);
 
   // Auto-scroll
@@ -209,7 +245,7 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
   useEffect(() => {
     if (autoLoaded.current) return;
     autoLoaded.current = true;
-    sendMessage(TOPIC_PROMPTS.overview, true);
+    sendMessage(TOPIC_PROMPTS.overview, true, 'overview');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Inject palace analysis when palace selected
@@ -237,7 +273,7 @@ ${selectedPalace.name}在命盘中的意义，以及这种星曜配置的整体�
 **【实际建议】**
 基于此宫的具体建议。`;
 
-    sendMessage(prompt, true);
+    sendMessage(prompt, true, 'custom');
   }, [selectedPalace]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 注入四化飞化分析
@@ -271,77 +307,68 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
 **【实际建议】**
 基于此四化的具体可操作建议。`;
 
-    sendMessage(prompt, true);
+    sendMessage(prompt, true, 'custom');
   }, [selectedSiHua]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const streamResponse = async (apiMessages: { role: 'user' | 'assistant'; content: string }[]) => {
+  const requestResponse = async (question: string, topic: InterpretationTopic) => {
     try {
-      const res = await fetch('/api/interpret', {
+      const chartInput = birthInfoToChartInput(chart.birthInfo);
+      const res = await fetch('/api/ziwei-ai/interpret', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chart, messages: apiMessages }),
+        body: JSON.stringify({
+          input: chartInput,
+          topic: topic,
+          question: question.slice(0, 1000),
+        }),
       });
-      if (!res.ok) throw new Error('请求失败');
-      if (!res.body) throw new Error('无响应流');
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantText = '';
-
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6);
-          if (data === '[DONE]') break;
-          try {
-            const delta = JSON.parse(data).delta?.text ?? '';
-            assistantText += delta;
-            setMessages(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1] = { role: 'assistant', content: assistantText };
-              return updated;
-            });
-          } catch { /* skip */ }
+      const responseText = await res.text();
+      let payload: InterpretApiResponse | null = null;
+      if (responseText) {
+        try {
+          payload = JSON.parse(responseText) as InterpretApiResponse;
+        } catch {
+          payload = null;
         }
       }
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: '解读失败，请稍后重试。' }]);
+      if (!res.ok) throw new Error(apiErrorMessage(res.status, payload));
+      const report = payload?.report;
+      if (!report?.sections?.length) throw new Error('AI 返回结果格式异常，请稍后重试。');
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: reportAsMarkdown(report),
+      }]);
+    } catch (reason) {
+      const content = reason instanceof Error ? reason.message : 'AI 解读请求失败';
+      setMessages(prev => [...prev, { role: 'assistant', content }]);
     } finally {
       setLoading(false);
       loadingRef.current = false;
     }
   };
 
-  const sendMessage = (text: string, hidden = false) => {
+  const sendMessage = (text: string, hidden = false, topicKey = activeTopic) => {
     if (!text.trim() || loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
 
     const userMsg: Message = { role: 'user', content: text, hidden };
-    // Capture current messages synchronously via ref (avoids stale closure)
-    const apiMessages = [...messagesRef.current, userMsg].map(m => ({
-      role: m.role,
-      content: m.content,
-    }));
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
-    streamResponse(apiMessages);
+    requestResponse(text, API_TOPICS[topicKey] ?? 'custom');
   };
 
   const handleTopicClick = (topicKey: string) => {
     if (loadingRef.current) return;
     setActiveTopic(topicKey);
-    sendMessage(TOPIC_PROMPTS[topicKey], true);
+    sendMessage(TOPIC_PROMPTS[topicKey], true, topicKey);
   };
 
   const handleSend = () => {
-    sendMessage(input);
+    sendMessage(input, false, 'custom');
   };
 
   return (
@@ -427,6 +454,25 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
               </motion.div>
             );
           })}
+          {loading && (
+            <motion.div
+              key="interpretation-pending"
+              role="status"
+              aria-live="polite"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-2 text-[10px]"
+              style={{ color: 'var(--t-faint)' }}
+            >
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 animate-pulse rounded-full"
+                style={{ background: 'var(--t-gold)' }}
+              />
+              正在检索证据并校验…
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
