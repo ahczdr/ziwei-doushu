@@ -7,6 +7,8 @@ export interface BirthInfo {
   name?: string;
   province?: string;   // 出生省份
   city?: string;       // 出生城市
+  district?: string;   // 出生县区
+  locationCode?: string; // 国家行政区划代码
   longitude?: number;  // 出生地经度（用于真太阳时校正）
   /** 完整真太阳时，含跨日后的公历日期，例如 2000-08-16T23:42。 */
   trueSolarTime?: string;
