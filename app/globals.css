@@ -429,3 +429,21 @@ body {
   body { background: white; color: #1a1a18; }
   @page { margin: 1.2cm; size: A4 landscape; }
 }
+
+/* Enhanced chart readability: keep the chart generous on desktop and stack the
+   interpretation panel before the palace cells become too narrow. */
+.chart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .chart-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .chart-page-main { padding: 16px 10px !important; }
+  .chart-layout { gap: 16px; }
+}
