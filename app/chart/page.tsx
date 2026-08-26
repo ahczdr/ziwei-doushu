@@ -7,7 +7,6 @@ import InsightPanel from '@/components/InsightPanel';
 import PatternEvidencePanel from '@/components/PatternEvidencePanel';
 import ReactIztroBoard from '@/components/ReactIztroBoard';
 import ZiweiAiPanel from '@/components/ZiweiAiPanel';
-import TimeNav, { type TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
 import {
@@ -30,8 +29,6 @@ export default function ChartPage() {
   const [chart, setChart] = useState<ZiweiChart | null>(null);
   const [standardView, setStandardView] = useState<ReactIztroViewModel | null>(null);
   const [selectedPalace, setSelectedPalace] = useState<Palace | null>(null);
-  const [view, setView] = useState<TimeView>('mingpan');
-  const [liunianYear, setLiunianYear] = useState(() => new Date().getFullYear());
   const [mode, setMode] = useState<ChartMode>('enhanced');
 
   const handleBirthSubmit = (info: BirthInfo) => {
@@ -63,7 +60,7 @@ export default function ChartPage() {
   }
 
   return (
-    <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 16px' }}>
+    <main className="chart-page-main" style={{ maxWidth: 1500, margin: '0 auto', padding: '24px 20px' }}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
@@ -80,8 +77,7 @@ export default function ChartPage() {
 
       {mode === 'enhanced' ? (
         <>
-          <TimeNav chart={chart} view={view} liunianYear={liunianYear} onViewChange={setView} onYearChange={setLiunianYear} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 380px)', gap: 20, marginTop: 16, alignItems: 'start' }}>
+          <div className="chart-layout" style={{ marginTop: 16 }}>
             <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
             <InsightPanel chart={chart} selectedPalace={selectedPalace} />
           </div>

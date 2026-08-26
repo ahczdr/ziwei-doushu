@@ -10,7 +10,7 @@ interface ShareModalProps {
   onClose: () => void;
   shareUrl: string;
   chart: ZiweiChart | null;
-  birth: { year: string; month: string; day: string; hour: string; minute: string; gender: 'male' | 'female'; city?: string };
+  birth: { year: string; month: string; day: string; hour: string; minute: string; gender: 'male' | 'female'; province?: string; city?: string; district?: string };
   highlight?: string;
 }
 

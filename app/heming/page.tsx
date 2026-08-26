@@ -83,7 +83,7 @@ export default function HemingPage() {
 
   // 表单是否填齐
   const isFormReady = (f: BirthFormState | null): boolean =>
-    !!(f && f.year && f.month && f.day && f.gender && (f.unknownTime || (f.clockHour !== '' && f.clockMinute !== '')));
+    !!(f && f.year && f.month && f.day && f.gender && (!f.province || (f.city && f.district)) && (f.unknownTime || (f.clockHour !== '' && f.clockMinute !== '')));
 
   // ─── 统一入口：起盘 + 合盘分析 ─────────────────────────────
   const runAnalysis = useCallback(async (q?: string) => {

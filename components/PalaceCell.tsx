@@ -72,7 +72,7 @@ export default function PalaceCell({
       onClick={onClick}
       className="relative flex flex-col p-1.5 cursor-pointer transition-all duration-200 h-full"
       style={{
-        minHeight: '90px',
+        minHeight: '104px',
         background: isCurrentDaXian
           ? 'rgba(147,51,234,0.08)'
           : isSelected
@@ -105,7 +105,7 @@ export default function PalaceCell({
 
       {/* 宫名行 */}
       <div className="flex items-center gap-1 mb-0.5 pr-8">
-        <span className={clsx('text-[10px] font-medium tracking-wide',
+        <span className={clsx('text-[11px] font-medium tracking-wide',
           isMingGong ? 'text-amber-500' : isShenGong ? 'text-sky-500' : ''
         )}
           style={!isMingGong && !isShenGong ? { color: 'var(--t-faint)' } : undefined}
@@ -137,7 +137,7 @@ export default function PalaceCell({
               onClick={e => { e.stopPropagation(); onStarClick?.(star); }}
             >
               <span className={clsx(
-                'text-[13px] leading-tight font-bold tracking-tight cursor-pointer hover:brightness-125 transition-all',
+                'text-[14px] leading-tight font-bold tracking-tight cursor-pointer hover:brightness-125 transition-all',
                 star.brightness === 'bright' ? 'text-amber-300' : star.brightness === 'dim' ? 'text-amber-700/80' : 'text-amber-500',
               )}>
                 {star.name}

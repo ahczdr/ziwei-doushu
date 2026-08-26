@@ -117,6 +117,7 @@ test('legacy BirthInfo bridge keeps the already corrected time index and locatio
     gender: 'female',
     province: '安徽省',
     city: '池州市',
+    district: '贵池区',
     longitude: 117.49,
   });
 
@@ -125,7 +126,7 @@ test('legacy BirthInfo bridge keeps the already corrected time index and locatio
     date: '2000-8-16',
     hourIndex: 12,
     gender: 'female',
-    birthplace: '安徽省 / 池州市',
+    birthplace: '安徽省 / 池州市 / 贵池区',
     longitude: 117.49,
   });
 });

@@ -43,6 +43,8 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     name: form.name || undefined,
     province: form.province || undefined,
     city: form.city || undefined,
+    district: form.district || undefined,
+    locationCode: form.locationCode || undefined,
     longitude: form.province ? form.longitude : undefined,
   };
 }
@@ -62,6 +64,8 @@ export function formToSearchParams(form: BirthFormState): URLSearchParams {
   }
   if (form.province) p.set('p', form.province);
   if (form.city) p.set('c', form.city);
+  if (form.district) p.set('dstr', form.district);
+  if (form.locationCode) p.set('dc', form.locationCode);
   if (form.longitude && form.longitude !== 120) p.set('lo', String(form.longitude));
   p.set('g', form.gender === 'male' ? 'm' : 'f');
   return p;
@@ -83,6 +87,8 @@ export function searchParamsToForm(params: URLSearchParams): Partial<BirthFormSt
     clockMinute: params.get('mi') || '0',
     province: params.get('p') || '',
     city: params.get('c') || '',
+    district: params.get('dstr') || '',
+    locationCode: params.get('dc') || '',
     longitude: parseFloat(params.get('lo') || '120'),
     gender: params.get('g') === 'f' ? 'female' : 'male',
   };

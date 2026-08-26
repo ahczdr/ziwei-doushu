@@ -33,7 +33,7 @@ const ZHIWEI_LAYOUT: Array<{ branch: number; row: number; col: number }> = [
 
 interface ShareCardProps {
   chart: ZiweiChart;
-  birth: { year: string; month: string; day: string; hour: string; minute: string; gender: 'male' | 'female'; city?: string };
+  birth: { year: string; month: string; day: string; hour: string; minute: string; gender: 'male' | 'female'; province?: string; city?: string; district?: string };
   highlight?: string;
 }
 
@@ -100,7 +100,9 @@ export default function ShareCardCanvas({ chart, birth, highlight }: ShareCardPr
             {birth.year}年{birth.month}月{birth.day}日 · {birth.hour.padStart(2,'0')}:{birth.minute.padStart(2,'0')}
             <span style={{ margin: '0 4px', color: '#b8922a' }}>·</span>
             {birth.gender === 'male' ? '男命' : '女命'}
-            {birth.city && <><span style={{ margin: '0 4px', color: '#b8922a' }}>·</span>{birth.city}</>}
+            {[birth.province, birth.city, birth.district].filter(Boolean).map((place, i) => (
+              <span key={place}>{i > 0 && <span style={{ margin: '0 4px', color: '#b8922a' }}>·</span>}{place}</span>
+            ))}
           </div>
           <div style={{ fontSize: '8px', color: '#b8922a', letterSpacing: '0.08em', marginTop: '2px' }}>
             wdyziweidoushu666.com

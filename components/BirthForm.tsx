@@ -16,6 +16,8 @@ export interface BirthFormState {
   unknownTime: boolean;
   province: string;
   city: string;
+  district: string;
+  locationCode: string;
   longitude: number;
   gender: 'male' | 'female';
 }
@@ -61,6 +63,8 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
     unknownTime: initialData?.unknownTime ?? false,
     province: initialData?.province ?? '',
     city: initialData?.city ?? '',
+    district: initialData?.district ?? '',
+    locationCode: initialData?.locationCode ?? '',
     longitude: initialData?.longitude ?? 120,
     gender: initialData?.gender ?? 'male',
   });
@@ -78,6 +82,12 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
     const prov = PROVINCES.find(p => p.name === form.province);
     return prov ? prov.cities : [];
   }, [form.province]);
+
+  const districtList = useMemo(() => {
+    const prov = PROVINCES.find(p => p.name === form.province);
+    const city = prov?.cities.find(c => c.name === form.city);
+    return city?.districts ?? [];
+  }, [form.province, form.city]);
 
   const branch = useMemo(() => {
     if (form.unknownTime) return 0;
@@ -104,13 +114,14 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
     day: !form.day ? '请选择日期'
       : form.year && form.month && !isValidDate(y, m, d) ? `${m}月没有${d}日`
       : '',
+    location: form.province && (!form.city || !form.district) ? '请选择到县区（区、县或旗）' : '',
   };
   const hasError = Object.values(errors).some(Boolean);
 
   // ─── 完成度（用于进度条） ────────────────────────────────
   const steps = [
     !!form.year && !!form.month && !!form.day && !errors.year && !errors.month && !errors.day,
-    !!form.province && !!form.city,
+    !!form.province && !!form.city && !!form.district,
     form.unknownTime || (!!form.clockHour && !!form.clockMinute),
     true, // 性别有默认值
   ];
@@ -121,7 +132,7 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
   const summaryText = showSummary
     ? [
         `${y}年${m}月${d}日`,
-        form.city || (form.province ? form.province : ''),
+        [form.province, form.city, form.district].filter(Boolean).join(' / '),
         form.unknownTime ? '时辰不详' : `${SHICHEN_NAMES[branch]}时`,
         form.gender === 'male' ? '男' : '女',
       ].filter(Boolean).join(' · ')
@@ -129,23 +140,29 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
 
   const handleProvince = (prov: string) => {
     const provData = PROVINCES.find(p => p.name === prov);
-    const firstCity = provData?.cities[0];
-    setForm({ ...form, province: prov, city: firstCity?.name || '', longitude: firstCity?.longitude ?? 120 });
+    setForm({ ...form, province: prov, city: '', district: '', locationCode: '', longitude: provData?.longitude ?? 120 });
   };
 
   const handleCity = (cityName: string) => {
     const prov = PROVINCES.find(p => p.name === form.province);
     const cityData = prov?.cities.find(c => c.name === cityName);
-    setForm({ ...form, city: cityName, longitude: cityData?.longitude ?? 120 });
+    setForm({ ...form, city: cityName, district: '', locationCode: '', longitude: cityData?.longitude ?? 120 });
+  };
+
+  const handleDistrict = (districtName: string) => {
+    const prov = PROVINCES.find(p => p.name === form.province);
+    const cityData = prov?.cities.find(c => c.name === form.city);
+    const districtData = cityData?.districts.find(d => d.name === districtName);
+    setForm({ ...form, district: districtName, locationCode: districtData?.code ?? '', longitude: districtData?.longitude ?? cityData?.longitude ?? 120 });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitAttempted(true);
     setTouched({ year: true, month: true, day: true });
-    if (hasError) return;
+    if (hasError || errors.location) return;
     onFormSave?.({ ...form });
-    onSubmit({ year: y, month: m, day: d, hour: branch, gender: form.gender, name: form.name || undefined, province: form.province || undefined, city: form.city || undefined, longitude: form.province ? form.longitude : undefined });
+    onSubmit({ year: y, month: m, day: d, hour: branch, gender: form.gender, name: form.name || undefined, province: form.province || undefined, city: form.city || undefined, district: form.district || undefined, locationCode: form.locationCode || undefined, longitude: form.province ? form.longitude : undefined });
   };
 
   // ─── 样式变量 ────────────────────────────────────────────
@@ -291,7 +308,7 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
       {/* ── 出生地点 ── */}
       <div style={{ marginBottom: '16px' }}>
         <label style={{ display: 'block', fontSize: '11px', color: labelClr, marginBottom: '6px', letterSpacing: '0.05em' }}>出生地点（用于真太阳时校正）</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
           <select
             value={form.province}
             onChange={e => handleProvince(e.target.value)}
@@ -317,7 +334,22 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
+          <select
+            value={form.district}
+            onChange={e => handleDistrict(e.target.value)}
+            disabled={!form.city}
+            style={{ ...inputStyle, opacity: form.city ? 1 : 0.45 }}
+            onFocus={e => { e.target.style.borderColor = focusBorder; }}
+            onBlur={e => { e.target.style.borderColor = inputBorder; }}
+            required={!!form.province}
+          >
+            <option value="">{form.city ? '县 / 区' : '先选城市'}</option>
+            {districtList.map(district => (
+              <option key={district.code} value={district.name}>{district.name}</option>
+            ))}
+          </select>
         </div>
+        <FieldError msg={showErr('location') ? errors.location : ''} />
         <AnimatePresence mode="wait">
           {form.province ? (
             <motion.p
@@ -327,7 +359,7 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
               exit={{ opacity: 0 }}
               style={{ fontSize: '10px', color: isDark ? 'rgba(180,210,235,0.85)' : 'rgba(100,70,10,0.5)', marginTop: '5px' }}
             >
-              {form.city || '（请选择城市）'} · 经度 {form.longitude.toFixed(1)}°E · 时差 {offsetMin > 0 ? '+' : ''}{offsetMin} 分钟
+              {[form.city, form.district].filter(Boolean).join(' / ') || '（请选择城市和县区）'} · 经度 {form.longitude.toFixed(3)}°E · 时差 {offsetMin > 0 ? '+' : ''}{offsetMin} 分钟
             </motion.p>
           ) : (
             <motion.p

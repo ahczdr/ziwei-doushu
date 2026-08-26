@@ -63,7 +63,7 @@ export interface ReactIztroViewModel {
  * early Zi (0) from late Zi (12).
  */
 export function birthInfoToChartInput(info: BirthInfo): ChartInput {
-  const birthplace = [info.province, info.city].filter(Boolean).join(' / ') || undefined;
+  const birthplace = [info.province, info.city, info.district].filter(Boolean).join(' / ') || undefined;
   return {
     calendarType: 'solar',
     date: `${info.year}-${info.month}-${info.day}`,
