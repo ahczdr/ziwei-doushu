@@ -504,6 +504,16 @@ body {
 .traditional-scroll::-webkit-scrollbar-thumb { background: var(--t-border-acc); border-radius: 4px; }
 .traditional-scroll::-webkit-scrollbar-track { background: transparent; }
 
+/* ─── 内容页内链 pill ─────────────────────────────────── */
+.link-chip {
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.link-chip:hover {
+  border-color: var(--ac) !important;
+  color: var(--ac) !important;
+  background: var(--ac-bg) !important;
+}
+
 .traditional-hint {
   display: none;
   text-align: center;

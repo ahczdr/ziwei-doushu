@@ -4,6 +4,7 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import BackToTop from '@/components/BackToTop';
 import { ALL_BOOKS, getChapter } from '@/lib/classics';
 
 export async function generateStaticParams() {
@@ -173,6 +174,9 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
           ) : <div style={{ flex: 1 }} />}
         </div>
       </article>
+
+      {/* 返回顶部 */}
+      <BackToTop />
     </div>
   );
 }

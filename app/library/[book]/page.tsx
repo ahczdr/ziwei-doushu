@@ -73,7 +73,7 @@ export default async function BookPage({ params }: { params: Promise<{ book: str
                 color: 'inherit',
                 transition: 'background 0.15s',
               }}
-              className="hover:bg-amber-50"
+              className="hover:bg-[rgba(184,146,42,0.07)]"
             >
               <div style={{ fontSize: '12px', color: 'var(--ac)', fontWeight: 600, minWidth: '40px', letterSpacing: '0.1em' }}>
                 {String(i + 1).padStart(2, '0')}
