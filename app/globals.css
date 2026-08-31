@@ -8,17 +8,17 @@
   --font: -apple-system, 'PingFang SC', 'Helvetica Neue', 'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', 'Menlo', 'Noto Sans Mono', 'Consolas', monospace;
 
-  /* 背景层级 */
-  --bg-0: #FAFAF9;
-  --bg-1: #F4F3EF;
-  --bg-2: #ECEAE4;
+  /* 背景层级（羊皮纸系，与 --t-bg 同族） */
+  --bg-0: #FBF6E8;
+  --bg-1: #F6EFDD;
+  --bg-2: #EFE6CC;
   --bg-inv: #0D0D0B;
 
-  /* 文字层级 */
-  --tx-0: #0D0D0B;
-  --tx-1: #1A1A18;
-  --tx-2: #4A4A45;
-  --tx-3: #8A8A82;
+  /* 文字层级（深褐墨系，与 --t-text 同族） */
+  --tx-0: #2A2113;
+  --tx-1: #3B2E1A;
+  --tx-2: #6E5C3C;
+  --tx-3: #9A8760;
   --tx-inv: #F0EDE8;
   --tx-inv2: rgba(240,237,232,0.65);
 
@@ -77,17 +77,17 @@
   --t-star-dim:   #B09A6C;  /* 主星 · 落陷 */
 }
 
-/* ─── 暗色模式 Token 覆盖 ──────────────────────────────── */
+/* ─── 暗色模式 Token 覆盖（夜读乌木 · 与排盘页古典卷轴主题同族）── */
 [data-theme="dark"] {
-  --bg-0: #020810;
-  --bg-1: #0a1020;
-  --bg-2: #141e30;
+  --bg-0: #16110B;
+  --bg-1: #1D160E;
+  --bg-2: #262014;
   --bg-inv: #f0ede8;
 
-  --tx-0: #e8eef6;
-  --tx-1: #dce4f0;
-  --tx-2: #9db0d0;
-  --tx-3: #6a7a96;
+  --tx-0: #EDE2C6;
+  --tx-1: #E2D5B4;
+  --tx-2: #B3A37E;
+  --tx-3: #857451;
   --tx-inv: #0d0d0b;
   --tx-inv2: rgba(13,13,11,0.65);
 
@@ -105,8 +105,8 @@
   --sh-md: 0 4px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35);
   --sh-lg: 0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
 
-  --bg-card: rgba(255,255,255,0.04);
-  --bg-page: #020810;
+  --bg-card: rgba(255,240,210,0.04);
+  --bg-page: #16110B;
 }
 
 /* ─── 排盘页 · 古典卷轴主题（暗色 · 夜读乌木卷） ────────── */

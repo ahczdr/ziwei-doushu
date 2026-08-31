@@ -166,7 +166,7 @@ export default function HemingPage() {
       {/* 顶栏 */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 50,
-        background: isDark ? 'rgba(2,8,16,0.88)' : 'rgba(250,245,235,0.92)',
+        background: isDark ? 'rgba(22,17,11,0.88)' : 'rgba(250,245,235,0.92)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--bdr)',
         display: 'flex', alignItems: 'center', padding: '0 24px', height: '52px', gap: '16px',

@@ -202,48 +202,49 @@ const NI_TEACHINGS = [
 function useColors(theme: Theme) {
   const d = theme === 'dark';
   return {
-    bgBase:       d ? '#020810'                                : '#f5efe0',
+    // 暗色为「夜读乌木」（与排盘页古典卷轴主题同族）；亮色为羊皮纸 + 冷字
+    bgBase:       d ? '#16110B'                                : '#f5efe0',
     // nav 用与 bgBase 完全相同的不透明色，避免半透明叠加产生色差带
-    navBg:        d ? '#020810'                                : '#f5efe0',
-    navBorder:    d ? 'rgba(255,255,255,0.05)'                : 'rgba(160,120,30,0.15)',
+    navBg:        d ? '#16110B'                                : '#f5efe0',
+    navBorder:    d ? 'rgba(212,168,67,0.12)'                 : 'rgba(160,120,30,0.15)',
     goldGrad:     d ? 'linear-gradient(160deg,#c8993a 0%,#f0d070 40%,#c8993a 70%,#f0c755 100%)'
                     : 'linear-gradient(160deg,#6a4206 0%,#9a6a10 40%,#6a4206 70%,#885010 100%)',
     goldSolid:    d ? '#d4a843'                               : '#8b6410',
     goldLine:     d ? 'rgba(212,168,67,0.4)'                  : 'rgba(140,100,20,0.4)',
     tagText:      d ? 'rgba(212,168,67,0.6)'                  : 'rgba(120,80,10,0.65)',
-    // 亮色文字用冷灰系（A 方案核心）：暖底 + 冷字 → 视觉不审美疲劳
-    textPrimary:  d ? '#e8eef6'                               : '#1a1d24',
-    textSecond:   d ? '#b8c6df'                               : '#3a3f4a',
-    textMuted:    d ? '#9db0d0'                               : '#5a6275',
-    textFaint:    d ? 'rgba(240,246,255,0.56)'                : '#9da4b3',
-    // 冷色 accent（B 方案核心）：呼应暗色 quan 蓝；用于装饰性 glow / 链接 / 高亮
-    accent:       d ? '#3a78d4'                               : '#3a5a82',
-    accentSoft:   d ? 'rgba(58,120,212,0.18)'                 : 'rgba(58,90,130,0.10)',
-    cardBg:       d ? 'rgba(255,255,255,0.05)'                : 'rgba(255,255,255,0.88)',
-    cardBorder:   d ? 'rgba(255,255,255,0.10)'                : 'rgba(200,160,60,0.25)',
+    // 暗色文字暖米色（乌木卷上读卷）；亮色文字用冷灰系：暖底 + 冷字 → 视觉不审美疲劳
+    textPrimary:  d ? '#EDE2C6'                               : '#1a1d24',
+    textSecond:   d ? '#C4B48E'                               : '#3a3f4a',
+    textMuted:    d ? '#9C8B63'                               : '#5a6275',
+    textFaint:    d ? 'rgba(237,226,198,0.5)'                 : '#9da4b3',
+    // 冷色 accent：呼应 quan 蓝；用于装饰性 glow / 链接 / 高亮
+    accent:       d ? '#6FA3DC'                               : '#3a5a82',
+    accentSoft:   d ? 'rgba(111,163,220,0.16)'                : 'rgba(58,90,130,0.10)',
+    cardBg:       d ? 'rgba(255,240,210,0.04)'                : 'rgba(255,255,255,0.88)',
+    cardBorder:   d ? 'rgba(212,168,67,0.14)'                 : 'rgba(200,160,60,0.25)',
     cardShadow:   d ? '0 4px 32px rgba(0,0,0,0.5)'           : '0 4px 24px rgba(140,100,20,0.12)',
-    featureBg:    d ? 'rgba(255,255,255,0.04)'                : 'rgba(255,255,255,0.75)',
-    featureBord:  d ? 'rgba(255,255,255,0.08)'                : 'rgba(200,160,60,0.2)',
+    featureBg:    d ? 'rgba(255,240,210,0.03)'                : 'rgba(255,255,255,0.75)',
+    featureBord:  d ? 'rgba(212,168,67,0.12)'                 : 'rgba(200,160,60,0.2)',
     glowTint:     d ? 'rgba(212,168,67,0.07)'                 : 'rgba(180,140,40,0.06)',
-    // 亮色 glow 真用蓝/紫——给整体氛围加冷色点缀
-    glowBlue:     d ? 'rgba(40,80,160,0.12)'                  : 'rgba(58,90,130,0.06)',
-    glowPurple:   d ? 'rgba(120,50,180,0.08)'                 : 'rgba(96,80,140,0.04)',
-    niBg:         d ? 'rgba(255,255,255,0.04)'                : 'rgba(255,255,255,0.8)',
+    // 冷色 glow 点缀（乌木底上压暗蓝调，保持夜读氛围）
+    glowBlue:     d ? 'rgba(70,110,180,0.10)'                 : 'rgba(58,90,130,0.06)',
+    glowPurple:   d ? 'rgba(120,50,180,0.07)'                 : 'rgba(96,80,140,0.04)',
+    niBg:         d ? 'rgba(255,240,210,0.03)'                : 'rgba(255,255,255,0.8)',
     niBorder:     d ? 'rgba(212,168,67,0.2)'                  : 'rgba(180,130,40,0.25)',
-    niDivider:    d ? 'rgba(255,255,255,0.08)'                : 'rgba(180,130,40,0.12)',
-    niCardBg:     d ? 'rgba(255,255,255,0.04)'                : 'rgba(255,255,255,0.9)',
-    niCardBord:   d ? 'rgba(255,255,255,0.08)'                : 'rgba(200,160,60,0.2)',
+    niDivider:    d ? 'rgba(237,226,198,0.08)'                : 'rgba(180,130,40,0.12)',
+    niCardBg:     d ? 'rgba(255,240,210,0.03)'                : 'rgba(255,255,255,0.9)',
+    niCardBord:   d ? 'rgba(212,168,67,0.12)'                 : 'rgba(200,160,60,0.2)',
     niCardShadow: d ? '0 2px 20px rgba(0,0,0,0.4)'           : '0 2px 16px rgba(140,100,20,0.1)',
-    starBg:       d ? 'rgba(255,255,255,0.04)'                : 'rgba(255,255,255,0.7)',
+    starBg:       d ? 'rgba(255,240,210,0.03)'                : 'rgba(255,255,255,0.7)',
     starBorder:   d ? 'rgba(212,168,67,0.22)'                 : 'rgba(160,120,30,0.3)',
-    starText:     d ? 'rgba(212,168,67,0.7)'                  : 'rgba(120,80,10,0.7)',
+    starText:     d ? 'rgba(227,200,120,0.75)'                : 'rgba(120,80,10,0.7)',
     ctaBg:        d ? 'linear-gradient(135deg,#b8892a,#f0d070,#b8892a)'
                     : 'linear-gradient(135deg,#6a4206,#9a6810,#6a4206)',
     ctaText:      d ? '#08080a'                               : '#f8f3e8',
-    footerText:   d ? 'rgba(255,255,255,0.08)'                : '#d0b878',
+    footerText:   d ? 'rgba(212,168,67,0.16)'                 : '#d0b878',
     scrollLine:   d ? 'rgba(212,168,67,0.3)'                  : 'rgba(140,100,20,0.3)',
-    scrollText:   d ? 'rgba(255,255,255,0.12)'                : '#c0a870',
-    altSection:   d ? 'rgba(255,255,255,0.02)'                : 'rgba(255,255,255,0.4)',
+    scrollText:   d ? 'rgba(212,168,67,0.22)'                 : '#c0a870',
+    altSection:   d ? 'rgba(255,240,210,0.015)'               : 'rgba(255,255,255,0.4)',
     quoteBg:      d ? 'rgba(212,168,67,0.04)'                 : 'rgba(255,255,255,0.9)',
   };
 }
@@ -661,7 +662,7 @@ export default function HomePage() {
         <div className="absolute inset-0"
           style={{
             background: theme === 'dark'
-              ? 'linear-gradient(to bottom, #020810 0%, #020810 6%, #030a18 22%, #0d0820 40%, #0a0618 68%, #030a18 86%, #020810 100%)'
+              ? 'linear-gradient(to bottom, #16110B 0%, #16110B 6%, #1D140A 22%, #2A1B0E 40%, #231408 68%, #1D140A 86%, #16110B 100%)'
               : 'linear-gradient(to bottom, #f5efe0 0%, #f5efe0 6%, #c08055 18%, #6a2810 32%, #1e0a02 50%, #1e0a02 70%, #6a2810 84%, #f5efe0 100%)',
             transition: 'background 0.4s ease',
           }} />
@@ -676,9 +677,9 @@ export default function HomePage() {
           </div>
           <div className="space-y-3" style={{ maxWidth: '840px', margin: '0 auto' }}>
             {[
-              { text: '提前窥探命运的意义', size: 'clamp(17px, 2.2vw, 28px)', color: 'rgba(215,228,252,0.72)', delay: 0.1 },
-              { text: '不在于预知未来', size: 'clamp(21px, 2.6vw, 32px)', color: 'rgba(220,232,250,0.74)', delay: 0.25 },
-              { text: '而在于不断认识自己', size: 'clamp(24px, 3vw, 40px)', color: 'rgba(218,230,248,0.8)', delay: 0.34 },
+              { text: '提前窥探命运的意义', size: 'clamp(17px, 2.2vw, 28px)', color: 'rgba(237,226,198,0.7)', delay: 0.1 },
+              { text: '不在于预知未来', size: 'clamp(21px, 2.6vw, 32px)', color: 'rgba(237,226,198,0.74)', delay: 0.25 },
+              { text: '而在于不断认识自己', size: 'clamp(24px, 3vw, 40px)', color: 'rgba(242,233,207,0.82)', delay: 0.34 },
             ].map((line, i) => (
               <motion.p key={i}
                 initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
