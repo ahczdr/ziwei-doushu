@@ -21,7 +21,7 @@ type ChartMode = 'traditional' | 'enhanced' | 'standard';
 /**
  * 命盘页 —— Ziwei AI MVP
  * traditional：传统盘（文墨天机式 4x4）+ 宫位详情卡 + 服务端 AI 解盘。
- * enhanced：保留原增强盘。
+ * enhanced：增强盘 + 洞见面板 + 服务端 AI 解盘。
  * standard：react-iztro 标准盘 + 完整格局证据链 + 服务端 AI 解盘。
  *
  * `/chart` 使用 ZiweiAiBirthForm 桥接旧表单，确保跨日真太阳时与晚子时
@@ -99,10 +99,11 @@ export default function ChartPage() {
             <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
             <InsightPanel chart={chart} selectedPalace={selectedPalace} />
           </div>
+          <ZiweiAiPanel input={standardView.facts.input} />
         </>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(300px, 380px)', gap: 20, alignItems: 'start' }}>
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]" style={{ alignItems: 'start' }}>
             <ReactIztroBoard viewModel={standardView} />
             <PatternEvidencePanel facts={standardView.facts} />
           </div>

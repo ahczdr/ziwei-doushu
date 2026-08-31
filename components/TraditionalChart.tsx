@@ -320,14 +320,16 @@ export default function TraditionalChart({ chart, selectedBranch, onPalaceSelect
 
   return (
     <div>
-      <div
-        className="rounded-lg"
-        style={{
-          border: '1px solid var(--t-border)',
-          background: 'var(--t-card)',
-          boxShadow: 'var(--sh-md)',
-        }}
-      >
+      <div className="traditional-scroll" style={{ overflowX: 'auto' }}>
+        <div
+          className="rounded-lg"
+          style={{
+            border: '1px solid var(--t-border)',
+            background: 'var(--t-card)',
+            boxShadow: 'var(--sh-md)',
+            minWidth: 760,
+          }}
+        >
         <div className="grid grid-cols-4" style={{ minHeight: 720 }}>
           {layout.map(cell => {
             if (cell === 'skip') return null;
@@ -352,6 +354,8 @@ export default function TraditionalChart({ chart, selectedBranch, onPalaceSelect
             );
           })}
         </div>
+        </div>
+        <div className="traditional-hint" aria-hidden="true">‹ 左右滑动查看全盘 ›</div>
       </div>
       {selectedPalace && (
         <PalaceDetail
