@@ -20,6 +20,7 @@ type ChartMode = 'traditional' | 'enhanced' | 'standard';
 
 /**
  * 命盘页 —— Ziwei AI MVP
+ * traditional：传统盘（文墨天机式 4x4）+ 宫位详情卡 + 服务端 AI 解盘。
  * enhanced：保留原增强盘。
  * standard：react-iztro 标准盘 + 完整格局证据链 + 服务端 AI 解盘。
  *
@@ -75,18 +76,23 @@ export default function ChartPage() {
         <div className="flex rounded-xl border p-1" style={{ borderColor: 'var(--t-border)', background: 'var(--t-bg)' }} aria-label="命盘显示模式">
           <ModeButton active={mode === 'traditional'} onClick={() => setMode('traditional')}>传统盘</ModeButton>
           <ModeButton active={mode === 'enhanced'} onClick={() => setMode('enhanced')}>增强盘</ModeButton>
-          <ModeButton active={mode === 'standard'} onClick={() => setMode('standard')}>标准盘 · AI</ModeButton>
+          <ModeButton active={mode === 'standard'} onClick={() => setMode('standard')}>标准盘 · 格局</ModeButton>
         </div>
       </div>
 
       {mode === 'traditional' ? (
-        <div style={{ marginTop: 16, maxWidth: 1080, marginInline: 'auto' }}>
-          <TraditionalChart
-            chart={chart}
-            selectedBranch={selectedBranch}
-            onPalaceSelect={b => setSelectedBranch(prev => (prev === b ? null : b))}
-          />
-        </div>
+        <>
+          <div style={{ marginTop: 16, maxWidth: 1080, marginInline: 'auto' }}>
+            <TraditionalChart
+              chart={chart}
+              selectedBranch={selectedBranch}
+              onPalaceSelect={b => setSelectedBranch(prev => (prev === b ? null : b))}
+            />
+          </div>
+          <div style={{ maxWidth: 1080, marginInline: 'auto' }}>
+            <ZiweiAiPanel input={standardView.facts.input} />
+          </div>
+        </>
       ) : mode === 'enhanced' ? (
         <>
           <div className="chart-layout" style={{ marginTop: 16 }}>
