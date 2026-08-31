@@ -106,6 +106,11 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
       isMingGong:    p.name === '命宫',
       isShenGong:    p.isBodyPalace ?? false,
       isCurrentDaXian: false,
+      changsheng12:  p.changsheng12 as string | undefined,
+      boshi12:       p.boshi12 as string | undefined,
+      jiangqian12:   p.jiangqian12 as string | undefined,
+      suiqian12:     p.suiqian12 as string | undefined,
+      xiaoXianAges:  Array.isArray(p.ages) ? (p.ages as number[]) : undefined,
     };
   });
 
@@ -165,6 +170,25 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   // ── 农历信息 ──
   const lunarInfo = getLunarInfo(year, month, day);
 
+  // ── 传统盘中心信息（四柱 / 起运 / 命主身主 / 农历文本） ──
+  const fourPillars = (astrolabe.chineseDate as string)
+    .split(/\s+/)
+    .filter(s => s.length === 2)
+    .map(s => ({ gan: s[0], zhi: s[1] }));
+
+  const hourHms = HOUR_INDEX_TO_HMS[hour] ?? [7, 30];
+  const yun = Solar.fromYmdHms(year, month, day, hourHms[0], hourHms[1], 0)
+    .getLunar()
+    .getEightChar()
+    .getYun(gender === 'male' ? 1 : 0);
+  const qiYunText = `出生后 ${yun.getStartYear()}年${yun.getStartMonth()}月${yun.getStartDay()}天 八字起运`;
+  const baZiDaYun = (yun.getDaYun() ?? [])
+    .slice(1, 9) // 第0项为出生前；取8步大运
+    .map(d => ({ ganZhi: d.getGanZhi() as string, startAge: d.getStartAge() as number, startYear: d.getStartYear() as number }));
+
+  const lunarDateText = `${STEMS[lunarInfo.yearStem]}${BRANCHES[lunarInfo.yearBranch]}年` +
+    `${lunarInfo.isLeapMonth ? '闰' : ''}${MONTH_CN[lunarInfo.lunarMonth] ?? ''}月${DAY_CN[lunarInfo.lunarDay] ?? ''}日`;
+
   return {
     birthInfo,
     lunarInfo,
@@ -177,5 +201,32 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
     daXians,
     currentAge,
     currentDaXianIndex,
+    mingZhu: astrolabe.soul as string,
+    shenZhu: astrolabe.body as string,
+    lunarDateText,
+    fourPillars,
+    qiYunText,
+    baZiDaYun,
   };
 }
+
+// iztro 时辰索引 → 代表时刻（用于八字起运计算）
+const HOUR_INDEX_TO_HMS: Record<number, [number, number]> = {
+  0: [23, 30], 1: [1, 30], 2: [3, 30], 3: [5, 30], 4: [7, 30], 5: [9, 30], 6: [11, 30],
+  7: [13, 30], 8: [15, 30], 9: [17, 30], 10: [19, 30], 11: [21, 30], 12: [0, 30],
+};
+
+const MONTH_CN: Record<number, string> = {
+  1: '正', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六',
+  7: '七', 8: '八', 9: '九', 10: '十', 11: '十一', 12: '十二',
+};
+
+const DAY_CN: Record<number, string> = Object.fromEntries(
+  Array.from({ length: 30 }, (_, i) => {
+    const d = i + 1;
+    const n = ['初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
+      '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
+      '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'];
+    return [d, n[i]];
+  }),
+) as Record<number, string>;

@@ -58,6 +58,25 @@
   --r-pill:999px;
 }
 
+/* ─── 排盘页 · 古典卷轴主题 Token ─────────────────────────
+   --t-* 系列为命盘工作台专用：羊皮纸底 + 深褐星曜 + 鎏金点缀 */
+:root {
+  --t-bg:         #F8F1E0;  /* 宫格底 · 羊皮纸 */
+  --t-card:       #FDFAF0;  /* 卡片底 */
+  --t-panel:      #FBF6E9;  /* 信息面板底 */
+  --t-surface:    #F3ECD8;  /* 工具条/导航面 */
+  --t-text:       #3B2E1A;  /* 主文字 · 深褐墨 */
+  --t-text1:      #33270F;  /* 强调文字 */
+  --t-text2:      #6E5C3C;  /* 次级文字 */
+  --t-faint:      #9A8760;  /* 弱化文字/干支 */
+  --t-border:     #D5C49A;  /* 宫格线 */
+  --t-border-acc: #C2A05C;  /* 鎏金细线 */
+  --t-gold:       #8C5E1A;  /* 鎏金强调 · 古铜金 */
+  --t-star:       #8C5E1A;  /* 主星 */
+  --t-star-bright:#B8860B;  /* 主星 · 庙旺 */
+  --t-star-dim:   #B09A6C;  /* 主星 · 落陷 */
+}
+
 /* ─── 暗色模式 Token 覆盖 ──────────────────────────────── */
 [data-theme="dark"] {
   --bg-0: #020810;
@@ -88,6 +107,24 @@
 
   --bg-card: rgba(255,255,255,0.04);
   --bg-page: #020810;
+}
+
+/* ─── 排盘页 · 古典卷轴主题（暗色 · 夜读乌木卷） ────────── */
+[data-theme="dark"] {
+  --t-bg:         #211A11;
+  --t-card:       #2A2216;
+  --t-panel:      #262014;
+  --t-surface:    #2C2417;
+  --t-text:       #EDE2C6;
+  --t-text1:      #F2E9CF;
+  --t-text2:      #C4B48E;
+  --t-faint:      #9C8B63;
+  --t-border:     #4A3B22;
+  --t-border-acc: #7A5F28;
+  --t-gold:       #D4A843;
+  --t-star:       #E3C878;
+  --t-star-bright:#F0DA8C;
+  --t-star-dim:   #A98F55;
 }
 
 /* ─── 全局基础 ───────────────────────────────────────────── */
@@ -313,6 +350,19 @@ body {
 }
 .grad-text-light {
   background-image: linear-gradient(160deg, #6a4206 0%, #9a6a10 40%, #6a4206 70%, #885010 100%);
+}
+
+/* ─── 排盘页 · 卷轴纸面 ─────────────────────────────────── */
+.chart-page-main {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 900px 480px at 50% -80px, rgba(140, 94, 26, 0.10), transparent 70%),
+    linear-gradient(180deg, #F6EEDE 0%, #EFE4CC 100%);
+}
+[data-theme="dark"] .chart-page-main {
+  background:
+    radial-gradient(ellipse 900px 480px at 50% -80px, rgba(212, 168, 67, 0.08), transparent 70%),
+    linear-gradient(180deg, #16110B 0%, #1D160E 100%);
 }
 
 /* ─── 命盘工作台响应式 ─────────────────────────────────── */

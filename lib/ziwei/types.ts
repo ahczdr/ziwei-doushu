@@ -58,6 +58,16 @@ export interface Palace {
   borrowedFromName?: string;
   /** 若为空宫，借到的对宫主星名列表（结构化数据，文案层不再需要从文本反查借宫信息） */
   borrowedStars?: string[];
+  /** 传统盘用：长生十二神 */
+  changsheng12?: string;
+  /** 传统盘用：博士十二神 */
+  boshi12?: string;
+  /** 传统盘用：将前十二神 */
+  jiangqian12?: string;
+  /** 传统盘用：岁前十二神 */
+  suiqian12?: string;
+  /** 传统盘用：小限虚岁年龄列表 */
+  xiaoXianAges?: number[];
 }
 
 export interface DaXianSiHua {
@@ -79,6 +89,19 @@ export interface DaXian {
   siHua?: DaXianSiHua;   // 该大限四化（基于宫干）
 }
 
+/** 四柱干支对（传统盘中心信息用） */
+export interface PillarPair {
+  gan: string;
+  zhi: string;
+}
+
+/** 八字大运项（传统盘中心大运排） */
+export interface BaZiDaYun {
+  ganZhi: string;   // 大运干支
+  startAge: number; // 起运虚岁
+  startYear: number; // 起运公历年
+}
+
 export interface ZiweiChart {
   birthInfo: BirthInfo;
   lunarInfo: LunarInfo;
@@ -91,4 +114,16 @@ export interface ZiweiChart {
   daXians: DaXian[];
   currentAge: number;
   currentDaXianIndex: number;
+  /** 传统盘用：命主星名（如 禄存） */
+  mingZhu?: string;
+  /** 传统盘用：身主星名（如 天同） */
+  shenZhu?: string;
+  /** 传统盘用：农历日期文本（如 己卯年正月初一日） */
+  lunarDateText?: string;
+  /** 传统盘用：四柱（年/月/日/时） */
+  fourPillars?: PillarPair[];
+  /** 传统盘用：八字起运文本（如 出生后 3年10月23天 八字起运） */
+  qiYunText?: string;
+  /** 传统盘用：八字大运列表（第0项为出生前，渲染时跳过） */
+  baZiDaYun?: BaZiDaYun[];
 }

@@ -6,6 +6,7 @@ import ChartBoard from '@/components/ChartBoard';
 import InsightPanel from '@/components/InsightPanel';
 import PatternEvidencePanel from '@/components/PatternEvidencePanel';
 import ReactIztroBoard from '@/components/ReactIztroBoard';
+import TraditionalChart from '@/components/TraditionalChart';
 import ZiweiAiPanel from '@/components/ZiweiAiPanel';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
@@ -15,7 +16,7 @@ import {
   type ReactIztroViewModel,
 } from '@/lib/ziwei-ai/ui-chart';
 
-type ChartMode = 'enhanced' | 'standard';
+type ChartMode = 'traditional' | 'enhanced' | 'standard';
 
 /**
  * 命盘页 —— Ziwei AI MVP
@@ -29,7 +30,8 @@ export default function ChartPage() {
   const [chart, setChart] = useState<ZiweiChart | null>(null);
   const [standardView, setStandardView] = useState<ReactIztroViewModel | null>(null);
   const [selectedPalace, setSelectedPalace] = useState<Palace | null>(null);
-  const [mode, setMode] = useState<ChartMode>('enhanced');
+  const [mode, setMode] = useState<ChartMode>('traditional');
+  const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
 
   const handleBirthSubmit = (info: BirthInfo) => {
     const input = birthInfoToChartInput(info);
@@ -42,14 +44,15 @@ export default function ChartPage() {
     setChart(null);
     setStandardView(null);
     setSelectedPalace(null);
-    setMode('enhanced');
+    setSelectedBranch(null);
+    setMode('traditional');
   };
 
   if (!chart || !standardView) {
     return (
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '48px 20px' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>紫微斗数排盘 + AI 解盘</h1>
-        <p style={{ color: '#888', marginBottom: 32, fontSize: 14, lineHeight: 1.7 }}>
+      <main className="chart-page-main" style={{ maxWidth: 720, margin: '0 auto', padding: '48px 20px' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, color: 'var(--t-text)' }}>紫微斗数排盘 + AI 解盘</h1>
+        <p style={{ color: 'var(--t-text2)', marginBottom: 32, fontSize: 14, lineHeight: 1.7 }}>
           输入出生年月日时，系统生成确定性 ChartFacts、双命盘显示和格局证据。
           <br />
           AI 只解释确定性事实与实际检索到的古籍，不参与排盘计算。
@@ -65,17 +68,26 @@ export default function ChartPage() {
         <button
           type="button"
           onClick={reset}
-          style={{ padding: '6px 14px', cursor: 'pointer', border: '1px solid #ccc', borderRadius: 8, background: 'transparent' }}
+          style={{ padding: '6px 14px', cursor: 'pointer', border: '1px solid var(--t-border)', borderRadius: 8, background: 'var(--t-card)', color: 'var(--t-text)' }}
         >
           ← 重新起盘
         </button>
         <div className="flex rounded-xl border p-1" style={{ borderColor: 'var(--t-border)', background: 'var(--t-bg)' }} aria-label="命盘显示模式">
+          <ModeButton active={mode === 'traditional'} onClick={() => setMode('traditional')}>传统盘</ModeButton>
           <ModeButton active={mode === 'enhanced'} onClick={() => setMode('enhanced')}>增强盘</ModeButton>
           <ModeButton active={mode === 'standard'} onClick={() => setMode('standard')}>标准盘 · AI</ModeButton>
         </div>
       </div>
 
-      {mode === 'enhanced' ? (
+      {mode === 'traditional' ? (
+        <div style={{ marginTop: 16, maxWidth: 1080, marginInline: 'auto' }}>
+          <TraditionalChart
+            chart={chart}
+            selectedBranch={selectedBranch}
+            onPalaceSelect={b => setSelectedBranch(prev => (prev === b ? null : b))}
+          />
+        </div>
+      ) : mode === 'enhanced' ? (
         <>
           <div className="chart-layout" style={{ marginTop: 16 }}>
             <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />

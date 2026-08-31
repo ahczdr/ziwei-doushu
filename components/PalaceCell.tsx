@@ -105,15 +105,13 @@ export default function PalaceCell({
 
       {/* 宫名行 */}
       <div className="flex items-center gap-1 mb-0.5 pr-8">
-        <span className={clsx('text-[11px] font-medium tracking-wide',
-          isMingGong ? 'text-amber-500' : isShenGong ? 'text-sky-500' : ''
-        )}
-          style={!isMingGong && !isShenGong ? { color: 'var(--t-faint)' } : undefined}
+        <span className="text-[11px] font-medium tracking-wide"
+          style={{ color: isMingGong ? 'var(--t-gold)' : isShenGong ? 'var(--quan)' : 'var(--t-faint)' }}
         >
           {name}
         </span>
         {isMingGong && (
-          <span className="text-[7px] text-amber-500/80 border border-amber-500/30 px-0.5 rounded leading-tight">命</span>
+          <span className="text-[7px] px-0.5 rounded leading-tight" style={{ color: 'var(--t-gold)', border: '1px solid var(--t-border-acc)' }}>命</span>
         )}
         {isShenGong && (
           <span className="text-[7px] text-sky-500/80 border border-sky-500/30 px-0.5 rounded leading-tight">身</span>
@@ -136,10 +134,16 @@ export default function PalaceCell({
               className="flex items-center"
               onClick={e => { e.stopPropagation(); onStarClick?.(star); }}
             >
-              <span className={clsx(
-                'text-[14px] leading-tight font-bold tracking-tight cursor-pointer hover:brightness-125 transition-all',
-                star.brightness === 'bright' ? 'text-amber-300' : star.brightness === 'dim' ? 'text-amber-700/80' : 'text-amber-500',
-              )}>
+              <span
+                className="text-[14px] leading-tight font-bold tracking-tight cursor-pointer hover:brightness-125 transition-all"
+                style={{
+                  color: star.brightness === 'bright'
+                    ? 'var(--t-star-bright)'
+                    : star.brightness === 'dim'
+                    ? 'var(--t-star-dim)'
+                    : 'var(--t-star)',
+                }}
+              >
                 {star.name}
               </span>
               {star.siHua && <SiHuaBadge siHua={star.siHua} />}
