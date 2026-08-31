@@ -53,7 +53,63 @@ function errorMessageForStatus(status: number, payload: ApiErrorPayload | null) 
   if (status === 502) return '上游模型响应失败，请稍后重试或切换其他模型。';
   if (status === 413) return '本次问题内容过长，请精简后重试。';
   if (payload?.error) return payload.error;
-  return `AI 解读请求失败（HTTP ${status}）`;
+  return `AI 解读请求失败（HTTP ${status})`;
+}
+
+/** 把解盘结果导出为 Markdown 文本 */
+function buildMarkdown(result: ApiResult, topicLabel: string): string {
+  const { report, critic } = result;
+  const lines: string[] = [];
+  lines.push(`# ${report.title}`);
+  lines.push('');
+  lines.push(`> ${report.summary}`);
+  lines.push('');
+  lines.push(`**主题**：${topicLabel} · **Critic 评分**：${critic.score.toFixed(0)}（${critic.passed ? '通过' : '需复核'}）`);
+  if (result.modelProfile) lines.push(`**模型**：${result.modelProfile.label}（${result.modelProfile.apiStyle}）`);
+  lines.push(`**Provider**：${result.providerId} · 事实落实 ${(critic.groundedClaimRatio * 100).toFixed(0)}% · 引用精度 ${(critic.citationReferencePrecision * 100).toFixed(0)}%`);
+  if (result.revised) lines.push('（已经 Critic 自动修订一次）');
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+  for (const section of report.sections) {
+    lines.push(`## ${section.title}`);
+    lines.push('');
+    lines.push(section.content);
+    lines.push('');
+    for (const claim of section.claims) {
+      lines.push(`- ${claim.text}`);
+      if (claim.factIds.length > 0) lines.push(`  - facts: ${claim.factIds.join(', ')}`);
+      if (claim.citationIds.length > 0) lines.push(`  - citations: ${claim.citationIds.join(', ')}`);
+    }
+    if (section.claims.length > 0) lines.push('');
+  }
+  if (report.citations.length > 0) {
+    lines.push('## 古籍引用');
+    lines.push('');
+    for (const citation of report.citations) {
+      lines.push(`**[${citation.id}]** ${citation.bookTitle} · ${citation.chapterTitle} · ${citation.paragraphId}`);
+      lines.push('');
+      lines.push(`> ${citation.text}`);
+      lines.push('');
+    }
+  }
+  lines.push('---');
+  lines.push('');
+  lines.push(report.disclaimer);
+  return lines.join('\n');
+}
+
+/** 触发浏览器下载文本文件 */
+function downloadTextFile(filename: string, text: string, mime = 'text/markdown') {
+  const blob = new Blob([text], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
@@ -131,9 +187,24 @@ export default function ZiweiAiPanel({ input }: { input: ChartInput }) {
           <h3 className="mt-1 text-base font-semibold" style={{ color: 'var(--t-text)' }}>AI 解盘 · 事实与古籍可追溯</h3>
         </div>
         {result && (
-          <span className="rounded-full border px-2 py-1 text-[10px]" style={{ borderColor: 'var(--t-border)', color: result.critic.passed ? 'var(--t-gold)' : '#d97706' }}>
-            Critic {result.critic.score.toFixed(0)} · {result.critic.passed ? '通过' : '需复核'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border px-2 py-1 text-[10px]" style={{ borderColor: 'var(--t-border)', color: result.critic.passed ? 'var(--t-gold)' : '#d97706' }}>
+              Critic {result.critic.score.toFixed(0)} · {result.critic.passed ? '通过' : '需复核'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const topicLabel = TOPICS.find(t => t.id === topic)?.label ?? topic;
+                const date = new Date().toISOString().slice(0, 10);
+                downloadTextFile(`紫微AI解盘-${topicLabel}-${date}.md`, buildMarkdown(result, topicLabel));
+              }}
+              className="cursor-pointer rounded-full border px-2.5 py-1 text-[10px] transition-colors hover:opacity-75"
+              style={{ borderColor: 'var(--t-border-acc)', color: 'var(--t-gold)' }}
+              aria-label="下载 AI 解盘结果为 Markdown 文件"
+            >
+              ⬇ 保存 .md
+            </button>
+          </div>
         )}
       </div>
 
