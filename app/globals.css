@@ -514,6 +514,44 @@ body {
   background: var(--ac-bg) !important;
 }
 
+/* ─── 古籍阅读页 ──────────────────────────────────────── */
+/* 顶栏：长文阅读时保持导航可见 */
+.lib-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* 段落锚点：默认隐藏，hover 段落时浮现 */
+.para-anchor {
+  visibility: hidden;
+  flex: none;
+  align-self: center;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--tx-3);
+  text-decoration: none;
+  padding: 4px 2px;
+  transition: color 0.15s;
+}
+.para-anchor:hover { color: var(--ac); }
+.para-block:hover > div > .para-anchor, .para-block:focus-within > div > .para-anchor { visibility: visible; }
+
+/* 白话/倪师注：宽屏与正文对齐，窄屏取消缩进 */
+.para-note { margin-left: 36px; }
+@media (max-width: 640px) { .para-note { margin-left: 0; } }
+
+/* 章节导航卡片 hover */
+.chapter-nav {
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.chapter-nav:hover {
+  border-color: var(--ac) !important;
+  background: var(--ac-bg) !important;
+}
+
 .traditional-hint {
   display: none;
   text-align: center;

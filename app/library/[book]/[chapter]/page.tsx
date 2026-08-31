@@ -34,7 +34,7 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
 
   return (
     <div style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
-      <div className="px-6 py-4 flex items-center justify-between"
+      <div className="lib-topbar px-6 py-4 flex items-center justify-between"
         style={{ borderBottom: '1px solid rgba(184,146,42,0.15)', background: 'var(--bg-page)' }}>
         <Link href={`/library/${book.slug}`} style={{ fontSize: '12px', color: 'var(--ac)', letterSpacing: '0.3em', textDecoration: 'none' }}>
           ← 《{book.title}》目录
@@ -69,6 +69,7 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
             <div
               key={p.id}
               id={p.id}
+              className="para-block"
               style={{
                 marginBottom: i === chapter.paragraphs.length - 1 ? 0 : '20px',
                 paddingBottom: i === chapter.paragraphs.length - 1 ? 0 : '20px',
@@ -96,15 +97,22 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
                   color: 'var(--tx-0)',
                   lineHeight: 2,
                   letterSpacing: '0.04em',
-                  fontFamily: '"PingFang SC", "Hiragino Sans GB", serif',
+                  fontFamily: '"Songti SC", "STSong", "Noto Serif SC", "PingFang SC", serif',
                 }}>
                   {p.text}
                 </p>
+                {/* 段落锚点链接：hover 显示，纯锚点无 JS */}
+                <a
+                  href={`#${p.id}`}
+                  className="para-anchor"
+                  aria-label={`锚点 ${p.id}`}
+                >
+                  §
+                </a>
               </div>
               {p.translation && (
-                <div style={{
+                <div className="para-note" style={{
                   marginTop: '8px',
-                  marginLeft: '36px',
                   padding: '8px 12px',
                   background: 'rgba(184,146,42,0.05)',
                   borderRadius: '6px',
@@ -117,9 +125,8 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
                 </div>
               )}
               {p.niNote && (
-                <div style={{
+                <div className="para-note" style={{
                   marginTop: '8px',
-                  marginLeft: '36px',
                   padding: '8px 12px',
                   background: 'rgba(196,90,45,0.05)',
                   borderRadius: '6px',
@@ -140,6 +147,7 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
           {prevIdx >= 0 ? (
             <Link
               href={`/library/${book.slug}/${prevIdx}`}
+              className="chapter-nav"
               style={{
                 flex: 1,
                 padding: '14px 18px',
@@ -157,6 +165,7 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
           {nextIdx < book.chapters.length ? (
             <Link
               href={`/library/${book.slug}/${nextIdx}`}
+              className="chapter-nav"
               style={{
                 flex: 1,
                 padding: '14px 18px',
