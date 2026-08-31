@@ -150,7 +150,7 @@ export default function HemingPage() {
   }, [chartA, chartB, formA, formB, generateChart]);
 
   const cardStyle = {
-    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
+    background: 'var(--bg-card)',
     border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(200,160,60,0.2)'}`,
     borderRadius: '16px',
     padding: '24px',
@@ -263,7 +263,7 @@ export default function HemingPage() {
                 开始合盘分析
               </button>
               {formError && (
-                <div style={{ marginTop: '20px', fontSize: '13px', color: '#dc2626' }}>
+                <div style={{ marginTop: '20px', fontSize: '13px', color: 'var(--ji)' }}>
                   {formError}
                 </div>
               )}
@@ -319,8 +319,8 @@ export default function HemingPage() {
                     opacity: analyzing ? 0.5 : 1,
                     transition: 'border-color 0.15s',
                   }}
-                  onMouseEnter={e => { if (!analyzing) (e.currentTarget as HTMLElement).style.borderColor = 'var(--ac-bdr)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--bdr-med)'; }}
+                  onMouseEnter={e => { if (!analyzing) { (e.currentTarget as HTMLElement).style.borderColor = 'var(--ac-bdr)'; (e.currentTarget as HTMLElement).style.background = 'var(--ac-bg)'; } }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--bdr-med)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                 >
                   {q}
                 </button>
@@ -345,10 +345,11 @@ export default function HemingPage() {
                 style={{
                   padding: '10px 20px', borderRadius: 'var(--r-sm)', border: 'none',
                   background: analyzing ? 'var(--bg-2)' : 'var(--tx-0)',
-                  color: analyzing ? 'var(--tx-3)' : 'white',
+                  color: analyzing ? 'var(--tx-3)' : 'var(--bg-0)',
                   fontSize: '13px', fontWeight: 500,
                   cursor: analyzing ? 'not-allowed' : 'pointer',
                   transition: 'all 0.15s', whiteSpace: 'nowrap',
+                  opacity: analyzing ? 0.7 : 1,
                 }}
               >
                 {analyzing ? '分析中…' : '继续追问'}
